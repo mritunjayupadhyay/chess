@@ -11,7 +11,7 @@ import {
 } from '@myproject/chess-logic';
 import { getCheckAndCheckmate, getUpdatePiecesAfterMovement } from '../helpers/piece.helper';
 
-interface IInitialState {
+export interface IInitialState {
     activeColor: string;
     check: colorType | undefined;
     checkmate: colorType | undefined;

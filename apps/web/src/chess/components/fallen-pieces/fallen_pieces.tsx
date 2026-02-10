@@ -7,7 +7,6 @@ import { pieceType } from "@myproject/chess-logic";
 import type { IColor } from "@myproject/chess-logic";
 import { RootState } from "../../store";
 import { getImageUrl } from "../../helpers/piece.helper";
-import { EachPiece, FallenPieceStyled, NameAndPiecesContainer, NameContainer, NumberContainer, PieceListContainer, ProfilePic, ProfilePicContainer } from "./fallen_pieces.styled";
 
 function FallenPieces(props: IColor): React.JSX.Element {
     const imageUrl = getImageUrl(pieceType.KING, props.color);
@@ -28,23 +27,23 @@ function FallenPieces(props: IColor): React.JSX.Element {
         return opponentPieces.map((item, i) => {
             const pieceUrl = getImageUrl(item.type, item.color);
             return (
-                <EachPiece key={`${item.type}${item.points}${item.color}${i}`} src={pieceUrl}/>
+                <img key={`${item.type}${item.points}${item.color}${i}`} className="h-5 w-auto px-px" src={pieceUrl} />
             );
         })
     }
     return (
-        <FallenPieceStyled $color={props.color}>
-            <ProfilePicContainer $color={props.color}>
-                <ProfilePic src={imageUrl} />
-            </ProfilePicContainer>
-            <NameAndPiecesContainer>
-                <NameContainer>Player {props.color}</NameContainer>
-                <PieceListContainer>
+        <div className="grid grid-cols-[50px_1fr] h-10 my-2.5">
+            <div className="w-10 bg-gray-500 flex justify-center items-center">
+                <img className="max-w-[80%]" src={imageUrl} />
+            </div>
+            <div className="px-1.5 flex flex-col">
+                <div className="flex-1 text-left text-sm">Player {props.color}</div>
+                <div className="flex-1 flex justify-start items-center">
                     {renderAllPieces()}
-                    {point > 0 ? <NumberContainer>{point}+</NumberContainer> : null}
-                </PieceListContainer>
-            </NameAndPiecesContainer>
-        </FallenPieceStyled>
+                    {point > 0 ? <div className="text-[13px] pl-[3px] tracking-wide">{point}+</div> : null}
+                </div>
+            </div>
+        </div>
     )
 }
 

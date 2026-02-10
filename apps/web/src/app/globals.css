@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-chess-light: #eeeed2;
+  --color-chess-dark: #769656;
+  --color-chess-primary: #444;
+  --font-family-arvo: "Arvo", serif;
+}
+
+* {
+  font-family: var(--font-family-arvo);
+}

@@ -3,12 +3,11 @@
 import { allColorType } from "@myproject/chess-logic";
 import { FallenPieces } from "../components/fallen-pieces/fallen_pieces";
 import { ChessBoard } from "../containers/chessboard/chessboard";
-import { ChessBoardContainer, GameStyle } from "./game_styled";
 
 function GamePage(): React.JSX.Element {
     return (
-        <GameStyle>
-            <ChessBoardContainer>
+        <div className="flex flex-col w-full min-h-screen justify-center">
+            <div className="relative w-full max-w-[600px] overflow-hidden mx-auto">
                 <div>
                     <FallenPieces color={allColorType.DARK_COLOR} />
                 </div>
@@ -16,8 +15,8 @@ function GamePage(): React.JSX.Element {
                 <div>
                     <FallenPieces color={allColorType.LIGHT_COLOR} />
                 </div>
-            </ChessBoardContainer>
-        </GameStyle>
+            </div>
+        </div>
     );
 }
 

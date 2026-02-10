@@ -1,5 +1,6 @@
 "use client";
 
+import clsx from "clsx";
 import { useSelector } from "react-redux";
 import { useDispatch } from "react-redux";
 import { allColorType, ICastlingBox, IPiece, IPosition } from "@myproject/chess-logic";
@@ -8,7 +9,6 @@ import { gameActions } from "../../store/game.slice";
 import { pieceActions } from "../../store/piece.slice";
 import { positionActions } from "../../store/position.slice";
 import { Piece } from "../piece/piece";
-import { BoxStyled, CanKillDiv, CanVisitDiv, HiddenLabel } from "./box_styled";
 
 export interface IBoxProps {
     position: IPosition;
@@ -63,12 +63,25 @@ function Box(props: IBoxProps): React.JSX.Element {
     let boxColor = ((props.position.x + props.position.y) % 2) === 0 ? allColorType.DARK_COLOR : allColorType.LIGHT_COLOR;
     let clickable = !!props.piece || props.canVisit || props.canKill;
     return (
-        <BoxStyled onClick={() => handleClick()} $isChecked={!!props.isChecked} $clickable={clickable} $color={boxColor} $active={props.active}>
-            <HiddenLabel>{props.label}</HiddenLabel>
+        <div
+            onClick={() => handleClick()}
+            className={clsx(
+                "relative",
+                clickable ? "cursor-pointer" : "cursor-default",
+                props.isChecked
+                    ? "bg-red-500/90"
+                    : props.active
+                        ? "bg-yellow-500/50"
+                        : boxColor === allColorType.LIGHT_COLOR
+                            ? "bg-chess-light"
+                            : "bg-chess-dark"
+            )}
+        >
+            <label className="invisible">{props.label}</label>
             {props.piece ? <Piece {...props.piece} /> : null}
-            {props.canVisit ? <CanVisitDiv /> : null}
-            {props.canKill ? <CanKillDiv /> : null}
-        </BoxStyled>
+            {props.canVisit ? <div className="absolute inset-0 bg-green-500/50" /> : null}
+            {props.canKill ? <div className="absolute inset-0 bg-red-500/50" /> : null}
+        </div>
     )
 }
 

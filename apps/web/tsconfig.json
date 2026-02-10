@@ -12,8 +12,8 @@
     "moduleResolution": "bundler",
     "allowJs": true,
     "noEmit": true,
-    "declaration": false,
     "incremental": true,
+    "declaration": true,
     "plugins": [
       {
         "name": "next"

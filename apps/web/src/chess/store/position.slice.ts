@@ -22,7 +22,7 @@ interface IMakePieceActiveProps {
     pieces: IPiece[],
 }
 
-interface IInitialState {
+export interface IInitialState {
     activePiece: IPiece | undefined;
     allPositions: Record<string, IBoxPosition>;
     allPossibleVisitingBoxes: Record<string, IBoxPosition>;

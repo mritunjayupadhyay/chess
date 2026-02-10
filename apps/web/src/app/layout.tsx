@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import StyledComponentsRegistry from "@/lib/styled-components-registry";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "My App",
@@ -20,7 +20,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
+        {children}
       </body>
     </html>
   );

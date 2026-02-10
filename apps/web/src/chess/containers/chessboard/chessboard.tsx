@@ -3,7 +3,6 @@
 import { useSelector } from "react-redux";
 import { Box } from "../../components/box/box";
 import { RootState } from "../../store";
-import { ChessBoardContent, ChessBoardStyled } from "./chessboard_styled";
 import { pieceType } from "@myproject/chess-logic";
 import { useEffect } from "react";
 import Swal from "sweetalert2";
@@ -79,11 +78,11 @@ function ChessBoard(): React.JSX.Element {
        return boxesToRender;
     }
     return (
-        <ChessBoardStyled>
-            <ChessBoardContent>
+        <div className="relative w-full max-w-[800px] overflow-hidden mx-auto before:content-[''] before:block before:pt-[100%]">
+            <div className="absolute inset-0 grid grid-rows-[repeat(8,1fr)] grid-cols-[repeat(8,1fr)]">
                 {renderBoxes()}
-            </ChessBoardContent>
-        </ChessBoardStyled>
+            </div>
+        </div>
     );
 }
 

@@ -6,7 +6,6 @@ import { pieceType, IPiece } from '@myproject/chess-logic';
 import { RootState } from '../../store';
 import { IGetCastingPayloadProps, positionActions } from '../../store/position.slice';
 import { getImageUrl } from '../../helpers/piece.helper';
-import { PieceStyled } from './piece_styled';
 
 function Piece(props: IPiece): React.JSX.Element {
   const dispatch = useDispatch();
@@ -30,7 +29,11 @@ function Piece(props: IPiece): React.JSX.Element {
   }
   const url = getImageUrl(props.type, props.color)
   return (
-    <PieceStyled onClick={() => handleClick()} $url={url}></PieceStyled>
+    <div
+      onClick={() => handleClick()}
+      className="absolute inset-0 bg-[length:60%] bg-no-repeat bg-center"
+      style={{ backgroundImage: `url(${url})` }}
+    />
   )
 }
 

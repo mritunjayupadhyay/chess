@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { allColorType } from "@myproject/chess-logic";
 
-interface IInitialState {
+export interface IInitialState {
     activeColor: string;
     winner: string | undefined;
     draw: boolean;
