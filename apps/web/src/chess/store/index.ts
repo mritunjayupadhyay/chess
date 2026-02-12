@@ -3,6 +3,7 @@ import logger from 'redux-logger'
 import { gameReducer } from './game.slice';
 import { pieceReducer } from './piece.slice';
 import { positionReducer } from './position.slice';
+import { multiplayerReducer } from './multiplayer.slice';
 
 export const makeStore = () => {
     return configureStore({
@@ -10,8 +11,10 @@ export const makeStore = () => {
             game: gameReducer,
             position: positionReducer,
             piece: pieceReducer,
+            multiplayer: multiplayerReducer,
         },
-        middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(logger as Middleware),
+        middleware: (getDefaultMiddleware) =>
+            getDefaultMiddleware({ serializableCheck: false }).concat(logger as Middleware),
     });
 }
 

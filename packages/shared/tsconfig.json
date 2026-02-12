@@ -5,7 +5,12 @@
     "rootDir": "./src",
     "composite": true,
     "module": "commonjs",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "paths": {
+      "@myproject/chess-logic": ["../chess-logic/dist"],
+      "@myproject/chess-logic/*": ["../chess-logic/dist/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [{ "path": "../chess-logic" }]
 }

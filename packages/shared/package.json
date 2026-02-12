@@ -9,6 +9,9 @@
     "dev": "tsc --watch --preserveWatchOutput",
     "lint": "tsc --noEmit"
   },
+  "dependencies": {
+    "@myproject/chess-logic": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.0"
   }

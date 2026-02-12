@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 // ✅ All three imported from the SAME shared package
 import {
@@ -123,6 +124,34 @@ export default function Home(): React.JSX.Element {
           {loading ? "Creating..." : "Create User"}
         </button>
       </form>
+
+      {/* Navigation */}
+      <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
+        <Link
+          href="/chess"
+          style={{
+            padding: "10px 24px",
+            background: "#4a5568",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: 4,
+          }}
+        >
+          Play Local Chess
+        </Link>
+        <Link
+          href="/multiplayer"
+          style={{
+            padding: "10px 24px",
+            background: "#2563eb",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: 4,
+          }}
+        >
+          Play Multiplayer
+        </Link>
+      </div>
 
       {/* Response */}
       {response && (

@@ -10,9 +10,14 @@
     "experimentalDecorators": true,
     "paths": {
       "@myproject/shared": ["../../packages/shared/dist"],
-      "@myproject/shared/*": ["../../packages/shared/dist/*"]
+      "@myproject/shared/*": ["../../packages/shared/dist/*"],
+      "@myproject/chess-logic": ["../../packages/chess-logic/dist"],
+      "@myproject/chess-logic/*": ["../../packages/chess-logic/dist/*"]
     }
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../../packages/shared" }]
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/chess-logic" }
+  ]
 }
