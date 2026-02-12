@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 import { MultiplayerBox } from "../../components/box/MultiplayerBox";
+import { FallenPieces } from "../../components/fallen-pieces/fallen_pieces";
 import {
     pieceType,
     allColorType,
@@ -135,6 +136,9 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
 
     const isMyTurn = gameState.activeColor === myColor;
     const isDarkPlayer = myColor === allColorType.DARK_COLOR;
+    const opponentColor = myColor === allColorType.LIGHT_COLOR ? allColorType.DARK_COLOR : allColorType.LIGHT_COLOR;
+    const myName = currentRoom?.players.find(p => p.color === myColor)?.displayName ?? "You";
+    const opponentName = currentRoom?.players.find(p => p.color !== myColor)?.displayName ?? "Opponent";
 
     const renderBoxes = () => {
         const boxesToRender = [];
@@ -205,12 +209,18 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
                     </span>
                 </div>
 
+                {/* Opponent's captured pieces */}
+                <FallenPieces color={opponentColor} playerName={opponentName} />
+
                 {/* Chess board */}
                 <div className="relative w-full max-w-[600px] overflow-hidden mx-auto before:content-[''] before:block before:pt-[100%]">
                     <div className="absolute inset-0 grid grid-rows-[repeat(8,1fr)] grid-cols-[repeat(8,1fr)]">
                         {renderBoxes()}
                     </div>
                 </div>
+
+                {/* Player's captured pieces */}
+                <FallenPieces color={myColor} playerName={myName} />
 
                 {/* Resign button */}
                 <div className="mt-3 text-center">
