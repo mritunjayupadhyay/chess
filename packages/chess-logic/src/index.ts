@@ -27,6 +27,9 @@ export type { IPositionAndPiece } from './interfaces';
 // Helpers
 export { getLabel } from './helpers/label.helper';
 export { checkIfOutside } from './helpers/position.helper';
+export { piecesToFen } from './helpers/fen.helper';
+export { toAlgebraicNotation } from './helpers/notation.helper';
+export type { INotationInput } from './helpers/notation.helper';
 
 // Logic
 export { getPossibleMove, isInDanger } from './logic';

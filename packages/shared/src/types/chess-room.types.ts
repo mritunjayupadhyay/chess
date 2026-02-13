@@ -6,6 +6,8 @@ export interface IPlayer {
     id: string;
     displayName: string;
     color?: colorType;
+    memberId?: string;
+    chessProfileId?: string;
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
@@ -45,6 +47,8 @@ export interface IServerGameState {
     check: colorType | undefined;
     checkmate: colorType | undefined;
     moveHistory: IMoveRecord[];
+    dbGameId?: string;
+    startedAt?: number;
 }
 
 // ---- Client-to-Server Payloads ----
@@ -52,11 +56,13 @@ export interface IServerGameState {
 export interface ICreateRoomPayload {
     roomName: string;
     playerName: string;
+    memberId: string;
 }
 
 export interface IJoinRoomPayload {
     roomId: string;
     playerName: string;
+    memberId: string;
 }
 
 export interface IMovePayload {

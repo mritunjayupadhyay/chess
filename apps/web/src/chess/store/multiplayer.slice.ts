@@ -6,6 +6,7 @@ export interface IMultiplayerState {
     connected: boolean;
     playerName: string;
     playerId: string;
+    memberId: string;
     currentRoom: IGameRoom | null;
     roomList: IRoomSummary[];
     myColor: colorType | undefined;
@@ -19,6 +20,7 @@ const initialState: IMultiplayerState = {
     connected: false,
     playerName: '',
     playerId: '',
+    memberId: '',
     currentRoom: null,
     roomList: [],
     myColor: undefined,
@@ -40,6 +42,9 @@ const slice = createSlice({
         },
         setPlayerId(state, action: PayloadAction<string>) {
             state.playerId = action.payload;
+        },
+        setMemberId(state, action: PayloadAction<string>) {
+            state.memberId = action.payload;
         },
         setCurrentRoom(state, action: PayloadAction<IGameRoom | null>) {
             state.currentRoom = action.payload;

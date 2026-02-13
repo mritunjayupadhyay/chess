@@ -15,9 +15,14 @@ import {
     IMovePayload,
     ICastlingMovePayload,
     IPlayer,
+    IServerGameState,
 } from '@myproject/shared';
+import { colorType, piecesToFen, toAlgebraicNotation, pieceType } from '@myproject/chess-logic';
 import { RoomService } from './room.service';
 import { GameStateService } from './game-state.service';
+import { ChessProfilesService } from '../chess-profiles/chess-profiles.service';
+import { GamesService } from '../games/games.service';
+import { MovesService } from '../moves/moves.service';
 
 @WebSocketGateway({
     cors: {
@@ -32,13 +37,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     constructor(
         private readonly roomService: RoomService,
         private readonly gameStateService: GameStateService,
+        private readonly chessProfilesService: ChessProfilesService,
+        private readonly gamesService: GamesService,
+        private readonly movesService: MovesService,
     ) {}
 
     handleConnection(client: Socket): void {
         console.log(`Client connected: ${client.id}`);
     }
 
-    handleDisconnect(client: Socket): void {
+    async handleDisconnect(client: Socket): Promise<void> {
         console.log(`Client disconnected: ${client.id}`);
         const result = this.roomService.leaveRoom(client.id);
         if (result) {
@@ -48,6 +56,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 const winner = room.players[0];
                 if (winner?.color) {
                     const gameState = this.gameStateService.getGameState(room.roomId);
+
+                    await this.finalizeGame(room.roomId, winner.color, 'disconnect');
+
                     this.server.to(room.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
                         winner: winner.color,
                         reason: 'disconnect',
@@ -67,14 +78,24 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.ROOM_CREATE)
-    handleCreateRoom(
+    async handleCreateRoom(
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: ICreateRoomPayload,
-    ): void {
+    ): Promise<void> {
         const player: IPlayer = {
             id: client.id,
             displayName: payload.playerName,
+            memberId: payload.memberId,
         };
+
+        // Look up chess profile
+        if (payload.memberId) {
+            const profile = await this.chessProfilesService.findByMemberId(payload.memberId).catch(() => null);
+            if (profile) {
+                player.chessProfileId = profile.id;
+            }
+        }
+
         const room = this.roomService.createRoom(payload.roomName, player);
         client.join(room.roomId);
         client.emit(SOCKET_EVENTS.ROOM_CREATED, { room });
@@ -83,14 +104,24 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.ROOM_JOIN)
-    handleJoinRoom(
+    async handleJoinRoom(
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: IJoinRoomPayload,
-    ): void {
+    ): Promise<void> {
         const player: IPlayer = {
             id: client.id,
             displayName: payload.playerName,
+            memberId: payload.memberId,
         };
+
+        // Look up chess profile
+        if (payload.memberId) {
+            const profile = await this.chessProfilesService.findByMemberId(payload.memberId).catch(() => null);
+            if (profile) {
+                player.chessProfileId = profile.id;
+            }
+        }
+
         const room = this.roomService.joinRoom(payload.roomId, player);
         if (!room) {
             client.emit(SOCKET_EVENTS.ERROR, { message: 'Unable to join room. It may be full or already started.' });
@@ -121,7 +152,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.GAME_START)
-    handleStartGame(@ConnectedSocket() client: Socket): void {
+    async handleStartGame(@ConnectedSocket() client: Socket): Promise<void> {
         const room = this.roomService.getRoomBySocketId(client.id);
         if (!room) {
             client.emit(SOCKET_EVENTS.ERROR, { message: 'Room not found' });
@@ -140,9 +171,27 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.roomService.setRoomStatus(room.roomId, 'playing');
         const gameState = this.gameStateService.initializeGame(room.roomId);
 
-        // Emit to each player individually with their color
+        // Create DB game record
         const updatedRoom = this.roomService.getRoom(room.roomId);
         if (updatedRoom) {
+            const whitePlayer = updatedRoom.players.find(p => p.color === 'light');
+            const blackPlayer = updatedRoom.players.find(p => p.color === 'dark');
+
+            if (whitePlayer?.chessProfileId && blackPlayer?.chessProfileId) {
+                try {
+                    const dbGame = await this.gamesService.create({
+                        whitePlayerId: whitePlayer.chessProfileId,
+                        blackPlayerId: blackPlayer.chessProfileId,
+                        timeControl: 'rapid',
+                    });
+                    gameState.dbGameId = dbGame.id;
+                    gameState.startedAt = Date.now();
+                } catch (err) {
+                    console.error('Failed to create game record:', err);
+                }
+            }
+
+            // Emit to each player individually with their color
             for (const player of updatedRoom.players) {
                 this.server.to(player.id).emit(SOCKET_EVENTS.GAME_STARTED, {
                     gameState,
@@ -155,10 +204,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.GAME_MOVE)
-    handleMove(
+    async handleMove(
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: IMovePayload,
-    ): void {
+    ): Promise<void> {
         const playerColor = this.roomService.getPlayerColor(payload.roomId, client.id);
         if (!playerColor) {
             client.emit(SOCKET_EVENTS.ERROR, { message: 'Player not found in room' });
@@ -181,8 +230,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             gameState: result.gameState,
         });
 
+        // Persist move to DB (fire-and-forget)
+        if (result.gameState?.dbGameId) {
+            this.persistMove(
+                result.gameState,
+                payload.roomId,
+                payload.piecePosition,
+                payload.targetPosition,
+                playerColor,
+                result.captured,
+            );
+        }
+
         // Check for checkmate
         if (result.gameState?.checkmate) {
+            await this.finalizeGame(payload.roomId, playerColor, 'checkmate');
+
             this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
                 winner: playerColor,
                 reason: 'checkmate',
@@ -195,10 +258,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.GAME_CASTLING_MOVE)
-    handleCastlingMove(
+    async handleCastlingMove(
         @ConnectedSocket() client: Socket,
         @MessageBody() payload: ICastlingMovePayload,
-    ): void {
+    ): Promise<void> {
         const playerColor = this.roomService.getPlayerColor(payload.roomId, client.id);
         if (!playerColor) {
             client.emit(SOCKET_EVENTS.ERROR, { message: 'Player not found in room' });
@@ -221,7 +284,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             gameState: result.gameState,
         });
 
+        // Persist castling move to DB (fire-and-forget)
+        if (result.gameState?.dbGameId) {
+            const isKingside = payload.rookPosition.x === 7;
+            this.persistCastlingMove(result.gameState, payload.roomId, playerColor, isKingside);
+        }
+
         if (result.gameState?.checkmate) {
+            await this.finalizeGame(payload.roomId, playerColor, 'checkmate');
+
             this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
                 winner: playerColor,
                 reason: 'checkmate',
@@ -234,15 +305,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage(SOCKET_EVENTS.GAME_RESIGN)
-    handleResign(@ConnectedSocket() client: Socket): void {
+    async handleResign(@ConnectedSocket() client: Socket): Promise<void> {
         const room = this.roomService.getRoomBySocketId(client.id);
         if (!room) return;
 
         const playerColor = this.roomService.getPlayerColor(room.roomId, client.id);
         if (!playerColor) return;
 
-        const winnerColor = playerColor === 'light' ? 'dark' : 'light';
+        const winnerColor: colorType = playerColor === 'light' ? 'dark' : 'light';
         const gameState = this.gameStateService.getGameState(room.roomId);
+
+        await this.finalizeGame(room.roomId, winnerColor, 'resign');
 
         this.server.to(room.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
             winner: winnerColor,
@@ -253,5 +326,142 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.roomService.setRoomStatus(room.roomId, 'finished');
         this.gameStateService.removeGame(room.roomId);
         this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
+    }
+
+    // ---- Private DB persistence helpers ----
+
+    private persistMove(
+        gameState: IServerGameState,
+        roomId: string,
+        from: { x: number; y: number },
+        to: { x: number; y: number },
+        playerColor: colorType,
+        captured?: pieceType,
+    ): void {
+        const room = this.roomService.getRoom(roomId);
+        if (!room || !gameState.dbGameId) return;
+
+        const player = room.players.find(p => p.color === playerColor);
+        if (!player?.chessProfileId) return;
+
+        const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1];
+        if (!lastMove) return;
+
+        const notation = toAlgebraicNotation({
+            pieceType: lastMove.pieceType,
+            from,
+            to,
+            captured,
+            isCheck: !!gameState.check,
+            isCheckmate: !!gameState.checkmate,
+        });
+
+        const fen = piecesToFen(gameState.pieces, gameState.activeColor, gameState.castlingData);
+        const ply = gameState.moveHistory.length;
+
+        this.movesService.create({
+            gameId: gameState.dbGameId,
+            ply,
+            playerId: player.chessProfileId,
+            notation,
+            fenAfter: fen,
+        }).catch(err => console.error('Failed to persist move:', err));
+    }
+
+    private persistCastlingMove(
+        gameState: IServerGameState,
+        roomId: string,
+        playerColor: colorType,
+        isKingside: boolean,
+    ): void {
+        const room = this.roomService.getRoom(roomId);
+        if (!room || !gameState.dbGameId) return;
+
+        const player = room.players.find(p => p.color === playerColor);
+        if (!player?.chessProfileId) return;
+
+        const notation = toAlgebraicNotation({
+            pieceType: pieceType.KING,
+            from: { x: 0, y: 0 },
+            to: { x: 0, y: 0 },
+            isCastlingKingside: isKingside,
+            isCastlingQueenside: !isKingside,
+            isCheck: !!gameState.check,
+            isCheckmate: !!gameState.checkmate,
+        });
+
+        const fen = piecesToFen(gameState.pieces, gameState.activeColor, gameState.castlingData);
+        const ply = gameState.moveHistory.length;
+
+        this.movesService.create({
+            gameId: gameState.dbGameId,
+            ply,
+            playerId: player.chessProfileId,
+            notation,
+            fenAfter: fen,
+        }).catch(err => console.error('Failed to persist castling move:', err));
+    }
+
+    private async finalizeGame(
+        roomId: string,
+        winnerColor: colorType | null,
+        reason: 'checkmate' | 'resign' | 'disconnect',
+    ): Promise<void> {
+        const gameState = this.gameStateService.getGameState(roomId);
+        const room = this.roomService.getRoom(roomId);
+        if (!gameState?.dbGameId || !room) return;
+
+        const whitePlayer = room.players.find(p => p.color === 'light');
+        const blackPlayer = room.players.find(p => p.color === 'dark');
+        if (!whitePlayer?.chessProfileId || !blackPlayer?.chessProfileId) return;
+
+        let result: 'white_win' | 'black_win' | 'draw' | 'abandoned';
+        let winnerId: string | null = null;
+
+        if (winnerColor === 'light') {
+            result = 'white_win';
+            winnerId = whitePlayer.chessProfileId;
+        } else if (winnerColor === 'dark') {
+            result = 'black_win';
+            winnerId = blackPlayer.chessProfileId;
+        } else {
+            result = 'draw';
+        }
+
+        const finalFen = piecesToFen(gameState.pieces, gameState.activeColor, gameState.castlingData);
+        const durationSeconds = gameState.startedAt
+            ? Math.round((Date.now() - gameState.startedAt) / 1000)
+            : 0;
+
+        try {
+            await this.gamesService.endGame(gameState.dbGameId, {
+                result,
+                endReason: reason,
+                winnerId,
+                finalFen,
+                durationSeconds,
+                totalMoves: gameState.moveHistory.length,
+            });
+
+            // Update stats for both players
+            if (result === 'white_win') {
+                await Promise.all([
+                    this.chessProfilesService.incrementStats(whitePlayer.chessProfileId, 'win'),
+                    this.chessProfilesService.incrementStats(blackPlayer.chessProfileId, 'loss'),
+                ]);
+            } else if (result === 'black_win') {
+                await Promise.all([
+                    this.chessProfilesService.incrementStats(whitePlayer.chessProfileId, 'loss'),
+                    this.chessProfilesService.incrementStats(blackPlayer.chessProfileId, 'win'),
+                ]);
+            } else {
+                await Promise.all([
+                    this.chessProfilesService.incrementStats(whitePlayer.chessProfileId, 'draw'),
+                    this.chessProfilesService.incrementStats(blackPlayer.chessProfileId, 'draw'),
+                ]);
+            }
+        } catch (err) {
+            console.error('Failed to finalize game:', err);
+        }
     }
 }

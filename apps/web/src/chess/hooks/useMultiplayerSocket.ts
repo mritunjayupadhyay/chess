@@ -83,14 +83,14 @@ export function useMultiplayerSocket() {
         };
     }, [dispatch]);
 
-    const createRoom = useCallback((roomName: string, playerName: string) => {
+    const createRoom = useCallback((roomName: string, playerName: string, memberId?: string) => {
         const socket = getSocket();
-        socket.emit(SOCKET_EVENTS.ROOM_CREATE, { roomName, playerName });
+        socket.emit(SOCKET_EVENTS.ROOM_CREATE, { roomName, playerName, memberId: memberId || '' });
     }, []);
 
-    const joinRoom = useCallback((roomId: string, playerName: string) => {
+    const joinRoom = useCallback((roomId: string, playerName: string, memberId?: string) => {
         const socket = getSocket();
-        socket.emit(SOCKET_EVENTS.ROOM_JOIN, { roomId, playerName });
+        socket.emit(SOCKET_EVENTS.ROOM_JOIN, { roomId, playerName, memberId: memberId || '' });
     }, []);
 
     const leaveRoom = useCallback(() => {

@@ -5,14 +5,15 @@ import { useSelector } from "react-redux";
 import { RootState } from "../../store";
 
 interface LobbyProps {
-    createRoom: (roomName: string, playerName: string) => void;
-    joinRoom: (roomId: string, playerName: string) => void;
+    createRoom: (roomName: string, playerName: string, memberId?: string) => void;
+    joinRoom: (roomId: string, playerName: string, memberId?: string) => void;
     listRooms: () => void;
 }
 
 function Lobby({ createRoom, joinRoom, listRooms }: LobbyProps): React.JSX.Element {
     const [roomName, setRoomName] = useState("");
     const playerName = useSelector((state: RootState) => state.multiplayer.playerName);
+    const memberId = useSelector((state: RootState) => state.multiplayer.memberId);
     const roomList = useSelector((state: RootState) => state.multiplayer.roomList);
     const error = useSelector((state: RootState) => state.multiplayer.error);
 
@@ -24,7 +25,7 @@ function Lobby({ createRoom, joinRoom, listRooms }: LobbyProps): React.JSX.Eleme
         e.preventDefault();
         const trimmed = roomName.trim();
         if (trimmed.length > 0) {
-            createRoom(trimmed, playerName);
+            createRoom(trimmed, playerName, memberId);
             setRoomName("");
         }
     };
@@ -96,7 +97,7 @@ function Lobby({ createRoom, joinRoom, listRooms }: LobbyProps): React.JSX.Eleme
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => joinRoom(room.roomId, playerName)}
+                                        onClick={() => joinRoom(room.roomId, playerName, memberId)}
                                         className="py-1 px-3 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
                                     >
                                         Join

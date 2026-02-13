@@ -45,8 +45,8 @@ importers:
         specifier: ^0.40.0
         version: 0.40.1(postgres@3.4.8)
       exam-question-bank-db:
-        specifier: git+https://github.com/mritunjayupadhyay/exam-question-bank-db.git#v1.0.0
-        version: git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#f3a17f37c10e35e3d51ad86fdac35bd0834b9c61(drizzle-orm@0.40.1(postgres@3.4.8))
+        specifier: git+https://github.com/mritunjayupadhyay/exam-question-bank-db.git#v1.1.0
+        version: git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#658a0d8401b0cb80be9fcadf2ea26beceb69f26f(drizzle-orm@0.40.1(postgres@3.4.8))
       postgres:
         specifier: ^3.4.5
         version: 3.4.8
@@ -2590,9 +2590,9 @@ packages:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
 
-  exam-question-bank-db@git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#f3a17f37c10e35e3d51ad86fdac35bd0834b9c61:
-    resolution: {commit: f3a17f37c10e35e3d51ad86fdac35bd0834b9c61, repo: git@github.com:mritunjayupadhyay/exam-question-bank-db.git, type: git}
-    version: 1.0.0
+  exam-question-bank-db@git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#658a0d8401b0cb80be9fcadf2ea26beceb69f26f:
+    resolution: {commit: 658a0d8401b0cb80be9fcadf2ea26beceb69f26f, repo: git@github.com:mritunjayupadhyay/exam-question-bank-db.git, type: git}
+    version: 1.1.0
     peerDependencies:
       drizzle-orm: '>=0.40.0'
 
@@ -7135,7 +7135,7 @@ snapshots:
 
   events@3.3.0: {}
 
-  exam-question-bank-db@git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#f3a17f37c10e35e3d51ad86fdac35bd0834b9c61(drizzle-orm@0.40.1(postgres@3.4.8)):
+  exam-question-bank-db@git+https://git@github.com:mritunjayupadhyay/exam-question-bank-db.git#658a0d8401b0cb80be9fcadf2ea26beceb69f26f(drizzle-orm@0.40.1(postgres@3.4.8)):
     dependencies:
       drizzle-orm: 0.40.1(postgres@3.4.8)
 
