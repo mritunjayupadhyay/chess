@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
+import { useUser } from "@clerk/nextjs";
 import { multiplayerActions } from "../../store/multiplayer.slice";
 
 function NameEntry(): React.JSX.Element {
     const dispatch = useDispatch();
+    const { user } = useUser();
     const [name, setName] = useState("");
+
+    useEffect(() => {
+        if (user) {
+            const clerkName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+            if (clerkName) {
+                setName(clerkName);
+            }
+        }
+    }, [user]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,9 +33,14 @@ function NameEntry(): React.JSX.Element {
                 <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">
                     Multiplayer Chess
                 </h1>
+                {user?.primaryEmailAddress?.emailAddress && (
+                    <p className="text-sm text-gray-500 text-center mb-4">
+                        Signed in as {user.primaryEmailAddress.emailAddress}
+                    </p>
+                )}
                 <form onSubmit={handleSubmit}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Enter your display name
+                        Your display name
                     </label>
                     <input
                         type="text"

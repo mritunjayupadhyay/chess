@@ -12,6 +12,7 @@
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.37.3",
     "@myproject/chess-logic": "workspace:*",
     "@myproject/shared": "workspace:*",
     "@opennextjs/cloudflare": "^1.16.3",
