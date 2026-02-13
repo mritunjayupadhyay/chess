@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "../store";
 import { useMultiplayerSocket } from "../hooks/useMultiplayerSocket";
@@ -14,6 +15,18 @@ function MultiplayerPage(): React.JSX.Element {
     const gameActive = useSelector((state: RootState) => state.multiplayer.gameActive);
 
     const socketActions = useMultiplayerSocket();
+
+    useEffect(() => {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        fetch(`${apiUrl}/api/members`)
+            .then((res) => res.json())
+            .then((data) => {
+                console.log('Members:', data);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch members:', err);
+            });
+    }, []);
 
     if (!playerName) {
         return <NameEntry />;
