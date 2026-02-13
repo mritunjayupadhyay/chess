@@ -1,6 +1,8 @@
 import { Controller, Get, Param } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { MembersService } from './members.service';
 
+@ApiTags('Members')
 @Controller('api/members')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}

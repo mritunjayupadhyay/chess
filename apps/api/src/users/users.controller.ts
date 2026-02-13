@@ -1,4 +1,5 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { UsersService } from "./users.service";
 
 // ✅ All three imported from the SAME shared package
@@ -10,6 +11,7 @@ import {
   API_ENDPOINTS,
 } from "@myproject/shared";
 
+@ApiTags('Users')
 @Controller(API_ENDPOINTS.USERS)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

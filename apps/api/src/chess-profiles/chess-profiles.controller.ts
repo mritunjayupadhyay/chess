@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Param, Body } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ChessProfilesService } from './chess-profiles.service';
 
+@ApiTags('Chess Profiles')
 @Controller('api/chess-profiles')
 export class ChessProfilesController {
     constructor(private readonly chessProfilesService: ChessProfilesService) {}
