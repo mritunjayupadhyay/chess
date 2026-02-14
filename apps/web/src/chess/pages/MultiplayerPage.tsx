@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { RootState } from "../store";
-import { multiplayerActions } from "../store/multiplayer.slice";
-import { useMultiplayerSocket } from "../hooks/useMultiplayerSocket";
-import { NameEntry } from "../components/multiplayer/NameEntry";
 import { Lobby } from "../components/multiplayer/Lobby";
-import { WaitingRoom } from "../components/multiplayer/WaitingRoom";
-import { MultiplayerChessBoard } from "../containers/chessboard/MultiplayerChessBoard";
 import {
     getMemberByClerkId,
     getChessProfileByMemberId,
@@ -17,49 +10,61 @@ import {
 } from "../../lib/api";
 
 function MultiplayerPage(): React.JSX.Element {
-    const dispatch = useDispatch();
-    const { user } = useUser();
-    const playerName = useSelector((state: RootState) => state.multiplayer.playerName);
-    const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
-    const gameActive = useSelector((state: RootState) => state.multiplayer.gameActive);
-
-    const socketActions = useMultiplayerSocket();
+    const { user, isLoaded } = useUser();
+    const [chessProfileId, setChessProfileId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!user?.id) return;
+        if (!isLoaded) return;
+        if (!user?.id) {
+            setLoading(false);
+            setError("Please sign in to play multiplayer.");
+            return;
+        }
 
         async function setup() {
             try {
                 const member = await getMemberByClerkId(user!.id);
-                if (!member?.id) return;
-                dispatch(multiplayerActions.setMemberId(member.id));
+                if (!member?.id) {
+                    setError("Member not found. Please complete your profile first.");
+                    return;
+                }
 
-                const profile = await getChessProfileByMemberId(member.id);
+                let profile = await getChessProfileByMemberId(member.id).catch(() => null);
                 if (!profile?.id) {
                     const username = [user!.firstName, user!.lastName].filter(Boolean).join('_') || user!.id;
-                    await createChessProfile(member.id, username);
+                    profile = await createChessProfile(member.id, username);
                 }
+                setChessProfileId(profile.id);
             } catch (err) {
                 console.error('Failed to set up chess profile:', err);
+                setError("Failed to set up chess profile. Please try again.");
+            } finally {
+                setLoading(false);
             }
         }
 
         setup();
-    }, [user, dispatch]);
+    }, [user, isLoaded]);
 
-    if (!playerName) {
-        return <NameEntry />;
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        );
     }
 
-    if (!currentRoom) {
-        return <Lobby {...socketActions} />;
+    if (error || !chessProfileId) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <p className="text-red-500">{error ?? "Something went wrong."}</p>
+            </div>
+        );
     }
 
-    if (!gameActive) {
-        return <WaitingRoom {...socketActions} />;
-    }
-
-    return <MultiplayerChessBoard {...socketActions} />;
+    return <Lobby chessProfileId={chessProfileId} />;
 }
 
 export { MultiplayerPage };

@@ -17,12 +17,13 @@ import {
     IPlayer,
     IServerGameState,
 } from '@myproject/shared';
-import { colorType, piecesToFen, toAlgebraicNotation, pieceType } from '@myproject/chess-logic';
+import { colorType, piecesToFen, toAlgebraicNotation, pieceType, allColorType } from '@myproject/chess-logic';
 import { RoomService } from './room.service';
 import { GameStateService } from './game-state.service';
 import { ChessProfilesService } from '../chess-profiles/chess-profiles.service';
 import { GamesService } from '../games/games.service';
 import { MovesService } from '../moves/moves.service';
+import { PendingGamesService } from '../games/pending-games.service';
 
 @WebSocketGateway({
     cors: {
@@ -40,6 +41,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private readonly chessProfilesService: ChessProfilesService,
         private readonly gamesService: GamesService,
         private readonly movesService: MovesService,
+        private readonly pendingGamesService: PendingGamesService,
     ) {}
 
     handleConnection(client: Socket): void {
@@ -76,6 +78,99 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
         }
     }
+
+    // ---- REST-based game flow: game:connect ----
+
+    @SubscribeMessage(SOCKET_EVENTS.GAME_CONNECT)
+    async handleGameConnect(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() payload: { gameId: string; chessProfileId: string },
+    ): Promise<void> {
+        const { gameId, chessProfileId } = payload;
+        const pendingGame = this.pendingGamesService.getGame(gameId);
+
+        if (!pendingGame) {
+            client.emit(SOCKET_EVENTS.ERROR, { message: 'Game not found' });
+            return;
+        }
+
+        if (pendingGame.status === 'started') {
+            client.emit(SOCKET_EVENTS.ERROR, { message: 'Game has already started' });
+            return;
+        }
+
+        const isPlayer = pendingGame.players.some(p => p.chessProfileId === chessProfileId);
+        if (!isPlayer) {
+            client.emit(SOCKET_EVENTS.ERROR, { message: 'You are not part of this game' });
+            return;
+        }
+
+        // Register socket
+        this.pendingGamesService.setPlayerSocket(gameId, chessProfileId, client.id);
+
+        // Determine player color
+        const playerColor: colorType = chessProfileId === pendingGame.whiteProfileId
+            ? allColorType.LIGHT_COLOR
+            : allColorType.DARK_COLOR;
+
+        // Create/join room with pre-assigned color
+        const player: IPlayer = {
+            id: client.id,
+            displayName: chessProfileId,
+            chessProfileId,
+            color: playerColor,
+        };
+        this.roomService.createOrJoinGameRoom(gameId, player);
+
+        const roomId = `game:${gameId}`;
+        client.join(roomId);
+
+        // Check if both players are connected
+        if (this.pendingGamesService.areBothPlayersConnected(gameId)) {
+            await this.autoStartGame(gameId);
+        } else {
+            client.emit(SOCKET_EVENTS.GAME_WAITING, { gameId });
+        }
+    }
+
+    private async autoStartGame(gameId: string): Promise<void> {
+        const pendingGame = this.pendingGamesService.getGame(gameId);
+        if (!pendingGame) return;
+
+        const roomId = `game:${gameId}`;
+        this.roomService.setRoomStatus(roomId, 'playing');
+        const gameState = this.gameStateService.initializeGame(roomId);
+
+        // Create DB record
+        if (pendingGame.whiteProfileId && pendingGame.blackProfileId) {
+            try {
+                const dbGame = await this.gamesService.create({
+                    whitePlayerId: pendingGame.whiteProfileId,
+                    blackPlayerId: pendingGame.blackProfileId,
+                    timeControl: pendingGame.timeControl,
+                });
+                gameState.dbGameId = dbGame.id;
+                gameState.startedAt = Date.now();
+            } catch (err) {
+                console.error('Failed to create game record:', err);
+            }
+        }
+
+        const room = this.roomService.getRoom(roomId);
+        if (room) {
+            for (const player of room.players) {
+                this.server.to(player.id).emit(SOCKET_EVENTS.GAME_STARTED, {
+                    gameState,
+                    myColor: player.color,
+                    room,
+                });
+            }
+        }
+
+        pendingGame.status = 'started';
+    }
+
+    // ---- Existing room-based flow ----
 
     @SubscribeMessage(SOCKET_EVENTS.ROOM_CREATE)
     async handleCreateRoom(

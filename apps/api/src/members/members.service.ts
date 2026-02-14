@@ -18,6 +18,7 @@ export class MembersService {
       .select()
       .from(schema.members)
       .where(eq(schema.members.clerkId, clerkId));
+      console.log('findByClerkId', { clerkId, rows });
     return rows[0] ?? null;
   }
 

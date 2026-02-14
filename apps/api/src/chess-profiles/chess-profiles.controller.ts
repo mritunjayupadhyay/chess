@@ -20,14 +20,14 @@ export class ChessProfilesController {
         );
     }
 
-    @Get(':id')
-    async getById(@Param('id') id: string) {
-        return this.chessProfilesService.findById(id);
-    }
-
     @Get('member/:memberId')
     async getByMemberId(@Param('memberId') memberId: string) {
         return this.chessProfilesService.findByMemberId(memberId);
+    }
+
+    @Get(':id')
+    async getById(@Param('id') id: string) {
+        return this.chessProfilesService.findById(id);
     }
 
     @Post()

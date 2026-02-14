@@ -8,6 +8,7 @@ export const SOCKET_EVENTS = {
     GAME_MOVE: 'game:move',
     GAME_CASTLING_MOVE: 'game:castling-move',
     GAME_RESIGN: 'game:resign',
+    GAME_CONNECT: 'game:connect',
 
     // Server-to-client
     ROOM_CREATED: 'room:created',
@@ -17,6 +18,7 @@ export const SOCKET_EVENTS = {
     GAME_STARTED: 'game:started',
     MOVE_RESULT: 'game:move-result',
     GAME_OVER: 'game:over',
+    GAME_WAITING: 'game:waiting',
     PLAYER_DISCONNECTED: 'player:disconnected',
     ERROR: 'error:message',
 } as const;

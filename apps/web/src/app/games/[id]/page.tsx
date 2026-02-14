@@ -1,4 +1,4 @@
-import { GameDetailPage } from "../../../chess/pages/GameDetailPage";
+import { GamePage } from "../../../chess/pages/GamePage";
 
 export default async function Page({
   params,
@@ -6,5 +6,5 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <GameDetailPage gameId={id} />;
+  return <GamePage gameId={id} />;
 }

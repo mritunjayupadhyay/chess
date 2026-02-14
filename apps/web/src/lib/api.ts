@@ -1,4 +1,4 @@
-import type { Member, ChessProfile, Game, GameDetail, Move } from './api-types';
+import type { Member, ChessProfile, Game, GameDetail, Move, PendingGame } from './api-types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -70,6 +70,27 @@ export function getGamesByProfileId(profileId: string, limit = 20, offset = 0) {
 
 export function getGameById(id: string) {
   return apiFetch<GameDetail>(`/api/games/${id}`);
+}
+
+// Game creation (REST-based flow)
+export function createGame(data: { timeControl: 'blitz' | 'rapid'; chessProfileId: string }) {
+  return apiFetch<{ id: string; timeControl: string; status: string }>('/api/games', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function joinGame(gameId: string, chessProfileId: string) {
+  return apiFetch<{
+    id: string;
+    timeControl: string;
+    status: string;
+    whiteProfileId: string;
+    blackProfileId: string;
+  }>(`/api/games/${gameId}/join`, {
+    method: 'POST',
+    body: JSON.stringify({ chessProfileId }),
+  });
 }
 
 // Moves

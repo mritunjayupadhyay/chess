@@ -58,3 +58,13 @@ export interface Game {
 export interface GameDetail extends Game {
   moves?: Move[];
 }
+
+export interface PendingGame {
+  id: string;
+  timeControl: 'blitz' | 'rapid';
+  status: 'waiting' | 'ready' | 'started';
+  players?: { chessProfileId: string }[];
+  whiteProfileId?: string;
+  blackProfileId?: string;
+  pending: true;
+}

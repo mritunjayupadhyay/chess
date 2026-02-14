@@ -100,6 +100,31 @@ export class RoomService {
         return player?.color;
     }
 
+    createOrJoinGameRoom(gameId: string, player: IPlayer): IGameRoom {
+        const roomId = `game:${gameId}`;
+        const existing = this.rooms.get(roomId);
+
+        if (existing) {
+            if (!existing.players.find(p => p.id === player.id)) {
+                existing.players.push(player);
+            }
+            this.playerRoomMap.set(player.id, roomId);
+            return existing;
+        }
+
+        const room: IGameRoom = {
+            roomId,
+            roomName: `Game ${gameId.substring(0, 8)}`,
+            players: [player],
+            status: 'waiting',
+            createdBy: player.id,
+            createdAt: Date.now(),
+        };
+        this.rooms.set(roomId, room);
+        this.playerRoomMap.set(player.id, roomId);
+        return room;
+    }
+
     private generateRoomId(): string {
         return Math.random().toString(36).substring(2, 10);
     }

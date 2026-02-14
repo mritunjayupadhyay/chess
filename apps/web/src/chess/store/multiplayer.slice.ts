@@ -7,6 +7,7 @@ export interface IMultiplayerState {
     playerName: string;
     playerId: string;
     memberId: string;
+    gameId: string | null;
     currentRoom: IGameRoom | null;
     roomList: IRoomSummary[];
     myColor: colorType | undefined;
@@ -21,6 +22,7 @@ const initialState: IMultiplayerState = {
     playerName: '',
     playerId: '',
     memberId: '',
+    gameId: null,
     currentRoom: null,
     roomList: [],
     myColor: undefined,
@@ -45,6 +47,9 @@ const slice = createSlice({
         },
         setMemberId(state, action: PayloadAction<string>) {
             state.memberId = action.payload;
+        },
+        setGameId(state, action: PayloadAction<string | null>) {
+            state.gameId = action.payload;
         },
         setCurrentRoom(state, action: PayloadAction<IGameRoom | null>) {
             state.currentRoom = action.payload;
