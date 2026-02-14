@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 import * as schema from 'exam-question-bank-db';
 
 @Injectable()
@@ -37,6 +37,28 @@ export class ChessProfilesService {
             .values({ userId: memberId, username })
             .returning();
         return rows[0];
+    }
+
+    async findAll(sortBy: 'wins' | 'gamesPlayed' = 'wins', limit = 50, offset = 0) {
+        const orderCol =
+            sortBy === 'wins'
+                ? schema.chessProfiles.wins
+                : schema.chessProfiles.gamesPlayed;
+        return this.db
+            .select()
+            .from(schema.chessProfiles)
+            .orderBy(desc(orderCol))
+            .limit(limit)
+            .offset(offset);
+    }
+
+    async updateUsername(id: string, username: string) {
+        const rows = await this.db
+            .update(schema.chessProfiles)
+            .set({ username, updatedAt: new Date() })
+            .where(eq(schema.chessProfiles.id, id))
+            .returning();
+        return rows[0] ?? null;
     }
 
     async incrementStats(

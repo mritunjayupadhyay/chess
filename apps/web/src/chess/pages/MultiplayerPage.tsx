@@ -10,6 +10,11 @@ import { NameEntry } from "../components/multiplayer/NameEntry";
 import { Lobby } from "../components/multiplayer/Lobby";
 import { WaitingRoom } from "../components/multiplayer/WaitingRoom";
 import { MultiplayerChessBoard } from "../containers/chessboard/MultiplayerChessBoard";
+import {
+    getMemberByClerkId,
+    getChessProfileByMemberId,
+    createChessProfile,
+} from "../../lib/api";
 
 function MultiplayerPage(): React.JSX.Element {
     const dispatch = useDispatch();
@@ -23,32 +28,23 @@ function MultiplayerPage(): React.JSX.Element {
     useEffect(() => {
         if (!user?.id) return;
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
-        // Look up member by Clerk ID, then ensure chess profile exists
-        fetch(`${apiUrl}/api/members/clerk/${user.id}`)
-            .then((res) => res.json())
-            .then((member) => {
+        async function setup() {
+            try {
+                const member = await getMemberByClerkId(user!.id);
                 if (!member?.id) return;
                 dispatch(multiplayerActions.setMemberId(member.id));
 
-                // Check if chess profile exists, create if not
-                return fetch(`${apiUrl}/api/chess-profiles/member/${member.id}`)
-                    .then((res) => res.json())
-                    .then((profile) => {
-                        if (!profile?.id) {
-                            const username = [user.firstName, user.lastName].filter(Boolean).join('_') || user.id;
-                            return fetch(`${apiUrl}/api/chess-profiles`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ memberId: member.id, username }),
-                            });
-                        }
-                    });
-            })
-            .catch((err) => {
+                const profile = await getChessProfileByMemberId(member.id);
+                if (!profile?.id) {
+                    const username = [user!.firstName, user!.lastName].filter(Boolean).join('_') || user!.id;
+                    await createChessProfile(member.id, username);
+                }
+            } catch (err) {
                 console.error('Failed to set up chess profile:', err);
-            });
+            }
+        }
+
+        setup();
     }, [user, dispatch]);
 
     if (!playerName) {

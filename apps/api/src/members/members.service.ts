@@ -20,4 +20,16 @@ export class MembersService {
       .where(eq(schema.members.clerkId, clerkId));
     return rows[0] ?? null;
   }
+
+  async update(
+    id: string,
+    data: { firstName?: string; lastName?: string; phone?: string },
+  ) {
+    const rows = await this.db
+      .update(schema.members)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(schema.members.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
 }
