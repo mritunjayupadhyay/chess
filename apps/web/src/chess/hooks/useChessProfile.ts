@@ -3,6 +3,7 @@ import { useUser } from '@clerk/nextjs';
 import type { Member, ChessProfile } from '../../lib/api-types';
 import {
   getMemberByClerkId,
+  createMember,
   getChessProfileByMemberId,
   createChessProfile,
 } from '../../lib/api';
@@ -22,11 +23,21 @@ export function useChessProfile() {
     async function load() {
       try {
         setLoading(true);
-        const m = await getMemberByClerkId(user!.id);
+        let m = await getMemberByClerkId(user!.id).catch(() => null);
+        if (cancelled) return;
+
+        if (!m?.id) {
+          m = await createMember({
+            clerkId: user!.id,
+            email: user!.primaryEmailAddress?.emailAddress || '',
+            firstName: user!.firstName || '',
+            lastName: user!.lastName || '',
+          });
+        }
         if (cancelled || !m?.id) return;
         setMember(m);
 
-        let p = await getChessProfileByMemberId(m.id);
+        let p = await getChessProfileByMemberId(m.id).catch(() => null);
         if (cancelled) return;
 
         if (!p?.id) {

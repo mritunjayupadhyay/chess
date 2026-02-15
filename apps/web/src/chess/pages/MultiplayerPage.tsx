@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { Lobby } from "../components/multiplayer/Lobby";
 import {
     getMemberByClerkId,
+    createMember,
     getChessProfileByMemberId,
     createChessProfile,
 } from "../../lib/api";
@@ -25,10 +26,14 @@ function MultiplayerPage(): React.JSX.Element {
 
         async function setup() {
             try {
-                const member = await getMemberByClerkId(user!.id);
+                let member = await getMemberByClerkId(user!.id).catch(() => null);
                 if (!member?.id) {
-                    setError("Member not found. Please complete your profile first.");
-                    return;
+                    member = await createMember({
+                        clerkId: user!.id,
+                        email: user!.primaryEmailAddress?.emailAddress || '',
+                        firstName: user!.firstName || '',
+                        lastName: user!.lastName || '',
+                    });
                 }
 
                 let profile = await getChessProfileByMemberId(member.id).catch(() => null);
@@ -39,7 +44,7 @@ function MultiplayerPage(): React.JSX.Element {
                 setChessProfileId(profile.id);
             } catch (err) {
                 console.error('Failed to set up chess profile:', err);
-                setError("Failed to set up chess profile. Please try again.");
+                setError((err as Error).message);
             } finally {
                 setLoading(false);
             }

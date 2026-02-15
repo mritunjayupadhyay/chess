@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MembersService } from './members.service';
 
@@ -6,6 +6,17 @@ import { MembersService } from './members.service';
 @Controller('api/members')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
+
+  @Post()
+  async create(
+    @Body() body: { clerkId: string; email: string; firstName: string; lastName: string },
+  ) {
+    return this.membersService.findOrCreateByClerkId(body.clerkId, {
+      email: body.email,
+      firstName: body.firstName,
+      lastName: body.lastName,
+    });
+  }
 
   @Get()
   async getMembers() {

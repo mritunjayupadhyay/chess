@@ -32,11 +32,24 @@ export class ChessProfilesService {
     }
 
     async create(memberId: string, username: string) {
-        const rows = await this.db
-            .insert(schema.chessProfiles)
-            .values({ userId: memberId, username })
-            .returning();
-        return rows[0];
+        try {
+            const rows = await this.db
+                .insert(schema.chessProfiles)
+                .values({ userId: memberId, username })
+                .returning();
+            return rows[0];
+        } catch (err: any) {
+            if (err?.code === '23505' && err?.constraint?.includes('username')) {
+                const suffix = Math.random().toString(36).substring(2, 6);
+                const fallback = `${username}_${suffix}`;
+                const rows = await this.db
+                    .insert(schema.chessProfiles)
+                    .values({ userId: memberId, username: fallback })
+                    .returning();
+                return rows[0];
+            }
+            throw err;
+        }
     }
 
     async findAll(sortBy: 'wins' | 'gamesPlayed' = 'wins', limit = 50, offset = 0) {

@@ -22,6 +22,28 @@ export class MembersService {
     return rows[0] ?? null;
   }
 
+  async create(data: {
+    clerkId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  }) {
+    const rows = await this.db
+      .insert(schema.members)
+      .values(data)
+      .returning();
+    return rows[0];
+  }
+
+  async findOrCreateByClerkId(
+    clerkId: string,
+    userData: { email: string; firstName: string; lastName: string },
+  ) {
+    const existing = await this.findByClerkId(clerkId);
+    if (existing) return existing;
+    return this.create({ clerkId, ...userData });
+  }
+
   async update(
     id: string,
     data: { firstName?: string; lastName?: string; phone?: string },

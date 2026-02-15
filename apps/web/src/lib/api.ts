@@ -2,20 +2,39 @@ import type { Member, ChessProfile, Game, GameDetail, Move, PendingGame } from '
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+interface ApiResponse<T> {
+  error: boolean;
+  msg: string;
+  data: T;
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
-  if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${res.statusText}`);
+  const body: ApiResponse<T> = await res.json();
+  if (body.error) {
+    throw new Error(body.msg || `API error ${res.status}`);
   }
-  return res.json() as Promise<T>;
+  return body.data;
 }
 
 // Members
 export function getMemberByClerkId(clerkId: string) {
   return apiFetch<Member>(`/api/members/clerk/${clerkId}`);
+}
+
+export function createMember(data: {
+  clerkId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}) {
+  return apiFetch<Member>('/api/members', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export function updateMember(
