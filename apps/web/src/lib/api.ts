@@ -13,6 +13,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
+  console.log(`API ${options?.method || 'GET'} ${path}`, options?.body ? `Body: ${options.body}` : '');
   const body: ApiResponse<T> = await res.json();
   if (body.error) {
     throw new Error(body.msg || `API error ${res.status}`);

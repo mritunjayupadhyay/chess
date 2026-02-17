@@ -27,6 +27,7 @@ function MultiplayerPage(): React.JSX.Element {
         async function setup() {
             try {
                 let member = await getMemberByClerkId(user!.id).catch(() => null);
+                console.log('Member DFS:', member);
                 if (!member?.id) {
                     member = await createMember({
                         clerkId: user!.id,
