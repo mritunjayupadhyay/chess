@@ -12,7 +12,8 @@
       "@myproject/shared": ["../../packages/shared/dist"],
       "@myproject/shared/*": ["../../packages/shared/dist/*"],
       "@myproject/chess-logic": ["../../packages/chess-logic/dist"],
-      "@myproject/chess-logic/*": ["../../packages/chess-logic/dist/*"]
+      "@myproject/chess-logic/*": ["../../packages/chess-logic/dist/*"],
+      "exam-question-bank-db/schema/chess-db": ["../../node_modules/exam-question-bank-db/dist/schema/chess-db"]
     }
   },
   "include": ["src/**/*"],

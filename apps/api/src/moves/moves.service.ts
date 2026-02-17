@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { eq, asc } from 'drizzle-orm';
-import * as schema from 'exam-question-bank-db';
+import * as schema from 'exam-question-bank-db/schema/chess-db';
 
 @Injectable()
 export class MovesService {

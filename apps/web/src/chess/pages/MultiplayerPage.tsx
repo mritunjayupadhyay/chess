@@ -35,12 +35,13 @@ function MultiplayerPage(): React.JSX.Element {
                         lastName: user!.lastName || '',
                     });
                 }
-
+                console.log('Member:', member);
                 let profile = await getChessProfileByMemberId(member.id).catch(() => null);
                 if (!profile?.id) {
                     const username = [user!.firstName, user!.lastName].filter(Boolean).join('_') || user!.id;
                     profile = await createChessProfile(member.id, username);
                 }
+                console.log('Chess Profile:', profile);
                 setChessProfileId(profile.id);
             } catch (err) {
                 console.error('Failed to set up chess profile:', err);

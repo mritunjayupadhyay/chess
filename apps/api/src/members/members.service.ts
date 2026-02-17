@@ -1,25 +1,22 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { eq } from 'drizzle-orm';
-import * as schema from 'exam-question-bank-db';
+import { Injectable } from '@nestjs/common';
+
+const USER_API_URL = process.env.USER_API_URL;
 
 @Injectable()
 export class MembersService {
-  constructor(
-    @Inject('DATABASE') private db: PostgresJsDatabase<typeof schema>,
-  ) {}
-
   async findAll() {
-    return this.db.select().from(schema.members);
+    const res = await fetch(`${USER_API_URL}/users`);
+    if (!res.ok) throw new Error(`User API error: ${res.status}`);
+    return res.json();
   }
 
   async findByClerkId(clerkId: string) {
-    const rows = await this.db
-      .select()
-      .from(schema.members)
-      .where(eq(schema.members.clerkId, clerkId));
-      console.log('findByClerkId', { clerkId, rows });
-    return rows[0] ?? null;
+    const res = await fetch(`${USER_API_URL}/users/clerk/${clerkId}`);
+    const data = await res.json();
+    console.log('findByClerkId', clerkId, data, USER_API_URL);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`User API error: ${res.status}`);
+    return data;
   }
 
   async create(data: {
@@ -28,11 +25,13 @@ export class MembersService {
     firstName: string;
     lastName: string;
   }) {
-    const rows = await this.db
-      .insert(schema.members)
-      .values(data)
-      .returning();
-    return rows[0];
+    const res = await fetch(`${USER_API_URL}/users/clerk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`User API error: ${res.status}`);
+    return res.json();
   }
 
   async findOrCreateByClerkId(
@@ -48,11 +47,12 @@ export class MembersService {
     id: string,
     data: { firstName?: string; lastName?: string; phone?: string },
   ) {
-    const rows = await this.db
-      .update(schema.members)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(schema.members.id, id))
-      .returning();
-    return rows[0] ?? null;
+    const res = await fetch(`${USER_API_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`User API error: ${res.status}`);
+    return res.json();
   }
 }

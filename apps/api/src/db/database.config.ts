@@ -3,7 +3,7 @@ import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import postgres = require('postgres');
 import * as dotenv from 'dotenv';
-import * as schema from 'exam-question-bank-db';
+import * as schema from 'exam-question-bank-db/schema/chess-db';
 
 dotenv.config();
 
@@ -11,9 +11,9 @@ let db: PostgresJsDatabase<typeof schema>;
 
 export function getDb(): PostgresJsDatabase<typeof schema> {
   if (!db) {
-    const connectionString = process.env.NEON_DATABASE_URL;
+    const connectionString = process.env.CHESS_DB_URL;
     if (!connectionString) {
-      throw new Error('NEON_DATABASE_URL is required');
+      throw new Error('CHESS_DB_URL is required');
     }
 
     const sql = postgres(connectionString, {

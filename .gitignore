@@ -4,6 +4,7 @@ dist
 .turbo
 .env.local
 .env
+.env.production
 *.log
 .DS_Store
 
