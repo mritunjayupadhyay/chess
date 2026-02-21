@@ -11,20 +11,26 @@ interface GamePageProps {
 }
 
 function GamePage({ gameId }: GamePageProps): React.JSX.Element {
-    const { user } = useUser();
+    const { user, isLoaded } = useUser();
     const [mode, setMode] = useState<'loading' | 'completed' | 'live'>('loading');
     const [chessProfileId, setChessProfileId] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!isLoaded) return;
+
+        let cancelled = false;
+
         async function determine() {
             // Try to load from DB
             try {
                 const game = await getGameById(gameId);
+                if (cancelled) return;
                 if (game && game.result) {
                     setMode('completed');
                     return;
                 }
             } catch {
+                if (cancelled) return;
                 // Not in DB — might be a pending game
             }
 
@@ -32,15 +38,19 @@ function GamePage({ gameId }: GamePageProps): React.JSX.Element {
             if (user?.id) {
                 try {
                     const member = await getMemberByClerkId(user.id);
+                    if (cancelled) return;
                     if (member?.id) {
                         let profile = await getChessProfileByMemberId(member.id).catch(() => null);
+                        if (cancelled) return;
                         if (!profile?.id) {
                             const username = [user.firstName, user.lastName].filter(Boolean).join('_') || user.id;
                             profile = await createChessProfile(member.id, username);
+                            if (cancelled) return;
                         }
                         setChessProfileId(profile.id);
                     }
                 } catch (err) {
+                    if (cancelled) return;
                     console.error('Failed to set up chess profile:', err);
                 }
             }
@@ -48,7 +58,8 @@ function GamePage({ gameId }: GamePageProps): React.JSX.Element {
         }
 
         determine();
-    }, [gameId, user]);
+        return () => { cancelled = true; };
+    }, [gameId, user, isLoaded]);
 
     if (mode === 'loading') {
         return (
