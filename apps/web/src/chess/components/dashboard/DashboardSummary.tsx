@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton, useUser } from "@clerk/nextjs";
 import { useChessProfile } from "../../hooks/useChessProfile";
 
 export function DashboardSummary() {
-  const { user } = useUser();
   const { profile, loading } = useChessProfile();
 
   if (loading) {
@@ -19,18 +17,6 @@ export function DashboardSummary() {
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-md">
-      <div className="flex items-center gap-3">
-        <UserButton afterSignOutUrl="/" />
-        <div className="text-gray-700">
-          <p className="font-semibold">
-            {user?.firstName} {user?.lastName}
-          </p>
-          <p className="text-sm text-gray-500">
-            {user?.primaryEmailAddress?.emailAddress}
-          </p>
-        </div>
-      </div>
-
       {profile && (
         <div className="grid grid-cols-2 gap-3 w-full">
           <div className="bg-gray-50 rounded-lg p-3 text-center">
