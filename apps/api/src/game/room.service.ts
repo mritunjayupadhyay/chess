@@ -125,6 +125,52 @@ export class RoomService {
         return room;
     }
 
+    findPlayerByChessProfileId(chessProfileId: string): { room: IGameRoom; player: IPlayer } | null {
+        for (const room of this.rooms.values()) {
+            const player = room.players.find(p => p.chessProfileId === chessProfileId);
+            if (player) {
+                return { room, player };
+            }
+        }
+        return null;
+    }
+
+    updatePlayerSocket(chessProfileId: string, oldSocketId: string, newSocketId: string): void {
+        const roomId = this.playerRoomMap.get(oldSocketId);
+        if (roomId) {
+            this.playerRoomMap.delete(oldSocketId);
+            this.playerRoomMap.set(newSocketId, roomId);
+        }
+
+        for (const room of this.rooms.values()) {
+            const player = room.players.find(p => p.chessProfileId === chessProfileId);
+            if (player) {
+                player.id = newSocketId;
+                // Also update playerRoomMap if we didn't find it via oldSocketId
+                if (!roomId) {
+                    this.playerRoomMap.set(newSocketId, room.roomId);
+                }
+                break;
+            }
+        }
+    }
+
+    markPlayerDisconnected(socketId: string): { room: IGameRoom; player: IPlayer } | null {
+        const roomId = this.playerRoomMap.get(socketId);
+        if (!roomId) return null;
+
+        const room = this.rooms.get(roomId);
+        if (!room) return null;
+
+        const player = room.players.find(p => p.id === socketId);
+        if (!player) return null;
+
+        // Remove from playerRoomMap but keep player in room.players
+        this.playerRoomMap.delete(socketId);
+
+        return { room, player };
+    }
+
     private generateRoomId(): string {
         return Math.random().toString(36).substring(2, 10);
     }

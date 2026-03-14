@@ -14,6 +14,7 @@ export interface IMultiplayerState {
     gameActive: boolean;
     gameState: IServerGameState | null;
     gameOver: { winner: colorType; reason: string } | null;
+    opponentDisconnected: boolean;
     error: string | null;
 }
 
@@ -29,6 +30,7 @@ const initialState: IMultiplayerState = {
     gameActive: false,
     gameState: null,
     gameOver: null,
+    opponentDisconnected: false,
     error: null,
 };
 
@@ -70,6 +72,9 @@ const slice = createSlice({
         gameOver(state, action: PayloadAction<{ winner: colorType; reason: string }>) {
             state.gameActive = false;
             state.gameOver = action.payload;
+        },
+        setOpponentDisconnected(state, action: PayloadAction<boolean>) {
+            state.opponentDisconnected = action.payload;
         },
         setError(state, action: PayloadAction<string | null>) {
             state.error = action.payload;

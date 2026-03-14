@@ -20,6 +20,9 @@ export const SOCKET_EVENTS = {
     GAME_OVER: 'game:over',
     GAME_WAITING: 'game:waiting',
     PLAYER_DISCONNECTED: 'player:disconnected',
+    GAME_RECONNECTED: 'game:reconnected',
+    OPPONENT_DISCONNECTED: 'game:opponent-disconnected',
+    OPPONENT_RECONNECTED: 'game:opponent-reconnected',
     ERROR: 'error:message',
 } as const;
 

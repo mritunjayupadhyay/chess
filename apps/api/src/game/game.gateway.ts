@@ -35,6 +35,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server!: Server;
 
+    private disconnectTimers = new Map<string, NodeJS.Timeout>();
+    private readonly RECONNECT_GRACE_PERIOD_MS = 30_000;
+
     constructor(
         private readonly roomService: RoomService,
         private readonly gameStateService: GameStateService,
@@ -50,31 +53,42 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     async handleDisconnect(client: Socket): Promise<void> {
         console.log(`Client disconnected: ${client.id}`);
-        const result = this.roomService.leaveRoom(client.id);
-        if (result) {
-            const { room, player } = result;
-            if (room.status === 'playing') {
-                // Game was active — declare other player winner
-                const winner = room.players[0];
-                if (winner?.color) {
-                    const gameState = this.gameStateService.getGameState(room.roomId);
 
-                    await this.finalizeGame(room.roomId, winner.color, 'disconnect');
+        const room = this.roomService.getRoomBySocketId(client.id);
 
-                    this.server.to(room.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
-                        winner: winner.color,
-                        reason: 'disconnect',
-                        gameState: gameState,
+        if (room && room.status === 'playing') {
+            // Active game — grace period for reconnection
+            const result = this.roomService.markPlayerDisconnected(client.id);
+            if (result) {
+                const { room: updatedRoom, player: disconnectedPlayer } = result;
+                const otherPlayer = updatedRoom.players.find(p => p.id !== disconnectedPlayer.id);
+
+                if (otherPlayer) {
+                    this.server.to(otherPlayer.id).emit(SOCKET_EVENTS.OPPONENT_DISCONNECTED, {
+                        player: disconnectedPlayer,
                     });
-                    this.gameStateService.removeGame(room.roomId);
-                    this.roomService.setRoomStatus(room.roomId, 'finished');
+                }
+
+                // Start forfeit timer
+                if (disconnectedPlayer.chessProfileId) {
+                    const timerKey = `${updatedRoom.roomId}:${disconnectedPlayer.chessProfileId}`;
+                    const timer = setTimeout(() => {
+                        this.forfeitDisconnectedPlayer(updatedRoom.roomId, disconnectedPlayer.chessProfileId!);
+                    }, this.RECONNECT_GRACE_PERIOD_MS);
+                    this.disconnectTimers.set(timerKey, timer);
                 }
             }
-            this.server.to(room.roomId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
+            return;
+        }
+
+        // Not in an active game — immediate leave
+        const result = this.roomService.leaveRoom(client.id);
+        if (result) {
+            const { room: leftRoom, player } = result;
+            this.server.to(leftRoom.roomId).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
                 player,
-                room,
+                room: leftRoom,
             });
-            // Broadcast updated room list
             this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
         }
     }
@@ -95,7 +109,61 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
 
         if (pendingGame.status === 'started') {
-            client.emit(SOCKET_EVENTS.ERROR, { message: 'Game has already started' });
+            // Attempt reconnection
+            const isReconnectingPlayer = pendingGame.players.some(p => p.chessProfileId === chessProfileId);
+            if (!isReconnectingPlayer) {
+                client.emit(SOCKET_EVENTS.ERROR, { message: 'You are not part of this game' });
+                return;
+            }
+
+            const roomId = `game:${gameId}`;
+            const room = this.roomService.getRoom(roomId);
+            const gameState = this.gameStateService.getGameState(roomId);
+
+            if (!room || !gameState) {
+                client.emit(SOCKET_EVENTS.ERROR, { message: 'Game has already ended' });
+                return;
+            }
+
+            // Find the existing player entry in the room
+            const existingPlayer = room.players.find(p => p.chessProfileId === chessProfileId);
+            if (!existingPlayer) {
+                client.emit(SOCKET_EVENTS.ERROR, { message: 'Player not found in room' });
+                return;
+            }
+
+            const oldSocketId = existingPlayer.id;
+
+            // Cancel forfeit timer
+            const timerKey = `${roomId}:${chessProfileId}`;
+            const timer = this.disconnectTimers.get(timerKey);
+            if (timer) {
+                clearTimeout(timer);
+                this.disconnectTimers.delete(timerKey);
+            }
+
+            // Update socket ID
+            this.pendingGamesService.setPlayerSocket(gameId, chessProfileId, client.id);
+            this.roomService.updatePlayerSocket(chessProfileId, oldSocketId, client.id);
+
+            // Join the Socket.IO room
+            client.join(roomId);
+
+            // Send full game state to reconnecting player
+            client.emit(SOCKET_EVENTS.GAME_RECONNECTED, {
+                gameState,
+                myColor: existingPlayer.color,
+                room,
+            });
+
+            // Notify opponent
+            const otherPlayer = room.players.find(p => p.chessProfileId !== chessProfileId);
+            if (otherPlayer) {
+                this.server.to(otherPlayer.id).emit(SOCKET_EVENTS.OPPONENT_RECONNECTED, {
+                    player: existingPlayer,
+                });
+            }
+
             return;
         }
 
@@ -339,6 +407,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         // Check for checkmate
         if (result.gameState?.checkmate) {
+            this.clearDisconnectTimersForRoom(payload.roomId);
             await this.finalizeGame(payload.roomId, playerColor, 'checkmate');
 
             this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
@@ -386,6 +455,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
 
         if (result.gameState?.checkmate) {
+            this.clearDisconnectTimersForRoom(payload.roomId);
             await this.finalizeGame(payload.roomId, playerColor, 'checkmate');
 
             this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
@@ -410,6 +480,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const winnerColor: colorType = playerColor === 'light' ? 'dark' : 'light';
         const gameState = this.gameStateService.getGameState(room.roomId);
 
+        this.clearDisconnectTimersForRoom(room.roomId);
         await this.finalizeGame(room.roomId, winnerColor, 'resign');
 
         this.server.to(room.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
@@ -421,6 +492,43 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.roomService.setRoomStatus(room.roomId, 'finished');
         this.gameStateService.removeGame(room.roomId);
         this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
+    }
+
+    // ---- Reconnection helpers ----
+
+    private async forfeitDisconnectedPlayer(roomId: string, chessProfileId: string): Promise<void> {
+        const timerKey = `${roomId}:${chessProfileId}`;
+        this.disconnectTimers.delete(timerKey);
+
+        const room = this.roomService.getRoom(roomId);
+        if (!room || room.status !== 'playing') return;
+
+        const gameState = this.gameStateService.getGameState(roomId);
+        if (!gameState) return;
+
+        const winner = room.players.find(p => p.chessProfileId !== chessProfileId);
+        if (!winner?.color) return;
+
+        await this.finalizeGame(roomId, winner.color, 'disconnect');
+
+        this.server.to(roomId).emit(SOCKET_EVENTS.GAME_OVER, {
+            winner: winner.color,
+            reason: 'disconnect',
+            gameState,
+        });
+
+        this.gameStateService.removeGame(roomId);
+        this.roomService.setRoomStatus(roomId, 'finished');
+        this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
+    }
+
+    private clearDisconnectTimersForRoom(roomId: string): void {
+        for (const [key, timer] of this.disconnectTimers.entries()) {
+            if (key.startsWith(`${roomId}:`)) {
+                clearTimeout(timer);
+                this.disconnectTimers.delete(key);
+            }
+        }
     }
 
     // ---- Private DB persistence helpers ----

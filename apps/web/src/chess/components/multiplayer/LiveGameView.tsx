@@ -34,12 +34,13 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
 
         const socket = connectSocket();
 
-        socket.on("connect", () => {
+        const handleConnect = () => {
             dispatch(multiplayerActions.setConnected(true));
-            dispatch(multiplayerActions.setPlayerId(socket.id || ""));
-            // Emit game:connect once socket is ready
+            dispatch(multiplayerActions.setPlayerId(socket.id!));
             socket.emit(SOCKET_EVENTS.GAME_CONNECT, { gameId, chessProfileId });
-        });
+        };
+
+        socket.on("connect", handleConnect);
 
         socket.on("disconnect", () => {
             dispatch(multiplayerActions.setConnected(false));
@@ -51,6 +52,19 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
 
         socket.on(SOCKET_EVENTS.GAME_STARTED, (payload: IGameStartedPayload) => {
             dispatch(multiplayerActions.gameStarted(payload));
+        });
+
+        socket.on(SOCKET_EVENTS.GAME_RECONNECTED, (payload: IGameStartedPayload) => {
+            dispatch(multiplayerActions.setOpponentDisconnected(false));
+            dispatch(multiplayerActions.gameStarted(payload));
+        });
+
+        socket.on(SOCKET_EVENTS.OPPONENT_DISCONNECTED, () => {
+            dispatch(multiplayerActions.setOpponentDisconnected(true));
+        });
+
+        socket.on(SOCKET_EVENTS.OPPONENT_RECONNECTED, () => {
+            dispatch(multiplayerActions.setOpponentDisconnected(false));
         });
 
         socket.on(SOCKET_EVENTS.MOVE_RESULT, (payload: IMoveResultPayload) => {
@@ -75,12 +89,10 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
 
         // If socket is already connected, emit immediately
         if (socket.connected) {
-            dispatch(multiplayerActions.setPlayerId(socket.id || ""));
-            socket.emit(SOCKET_EVENTS.GAME_CONNECT, { gameId, chessProfileId });
+            handleConnect();
         }
 
         return () => {
-            socket.removeAllListeners();
             disconnectSocket();
             connectedRef.current = false;
         };
