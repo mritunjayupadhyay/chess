@@ -176,17 +176,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         // Register socket
         this.pendingGamesService.setPlayerSocket(gameId, chessProfileId, client.id);
 
-        // Determine player color
-        const playerColor: colorType = chessProfileId === pendingGame.whiteProfileId
-            ? allColorType.LIGHT_COLOR
-            : allColorType.DARK_COLOR;
-
-        // Create/join room with pre-assigned color
+        // Create/join room (color will be assigned in autoStartGame once both players are connected)
         const player: IPlayer = {
             id: client.id,
             displayName: chessProfileId,
             chessProfileId,
-            color: playerColor,
         };
         this.roomService.createOrJoinGameRoom(gameId, player);
 
@@ -206,6 +200,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (!pendingGame) return;
 
         const roomId = `game:${gameId}`;
+
+        // Assign colors from the pending game's white/black assignment
+        const room = this.roomService.getRoom(roomId);
+        if (!room) return;
+
+        for (const player of room.players) {
+            player.color = player.chessProfileId === pendingGame.whiteProfileId
+                ? allColorType.LIGHT_COLOR
+                : allColorType.DARK_COLOR;
+        }
+
         this.roomService.setRoomStatus(roomId, 'playing');
         const gameState = this.gameStateService.initializeGame(roomId);
 
@@ -224,15 +229,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }
         }
 
-        const room = this.roomService.getRoom(roomId);
-        if (room) {
-            for (const player of room.players) {
-                this.server.to(player.id).emit(SOCKET_EVENTS.GAME_STARTED, {
-                    gameState,
-                    myColor: player.color,
-                    room,
-                });
-            }
+        for (const player of room.players) {
+            this.server.to(player.id).emit(SOCKET_EVENTS.GAME_STARTED, {
+                gameState,
+                myColor: player.color,
+                room,
+            });
         }
 
         pendingGame.status = 'started';
