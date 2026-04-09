@@ -55,6 +55,14 @@ export function useMultiplayerSocket() {
         });
 
         socket.on(SOCKET_EVENTS.MOVE_RESULT, (payload: IMoveResultPayload) => {
+            console.log('[SOCKET ⬇ MOVE_RESULT] received from server:', JSON.stringify({
+                activeColor: payload.gameState.activeColor,
+                check: payload.gameState.check,
+                checkmate: payload.gameState.checkmate,
+                lastMove: payload.gameState.moveHistory?.[payload.gameState.moveHistory.length - 1],
+                totalMoves: payload.gameState.moveHistory?.length,
+                pieces: payload.gameState.pieces?.map(p => `${p.color} ${p.type} (${p.position.x},${p.position.y})`),
+            }, null, 2));
             dispatch(multiplayerActions.updateGameState(payload.gameState));
         });
 
@@ -110,11 +118,13 @@ export function useMultiplayerSocket() {
     }, []);
 
     const makeMove = useCallback((roomId: string, piecePosition: IPosition, targetPosition: IPosition) => {
+        console.log('[SOCKET ⬆ GAME_MOVE] sending to server:', JSON.stringify({ roomId, piecePosition, targetPosition }, null, 2));
         const socket = getSocket();
         socket.emit(SOCKET_EVENTS.GAME_MOVE, { roomId, piecePosition, targetPosition });
     }, []);
 
     const makeCastlingMove = useCallback((roomId: string, kingPosition: IPosition, rookPosition: IPosition) => {
+        console.log('[SOCKET ⬆ CASTLING_MOVE] sending to server:', JSON.stringify({ roomId, kingPosition, rookPosition }, null, 2));
         const socket = getSocket();
         socket.emit(SOCKET_EVENTS.GAME_CASTLING_MOVE, { roomId, kingPosition, rookPosition });
     }, []);

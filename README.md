@@ -247,3 +247,18 @@ pnpm lint             # Lint all packages
 pnpm dev:web          # Start only frontend
 pnpm dev:api          # Start only backend
 ```
+
+## Flow for socket events: When first user comes to live game page.
+
+1. in LiveGameView(we come with a gameid, by login we already have chessProfileId), 
+   in useEffect([gameId, chessProfileId, dispatch]): we call const socket = connectSocket();
+2. connectSocket have s.connect( s is Socket). It initiate handeshake then does HTTP long-polling first, then upgrades to WebSocket. 
+3. Server runs handleConnection(client), This function is from interface OnGatewayConnection(from nest)
+  and our class GameGateway is implementing it.
+
+4. server sent acknowledgement with created socket id.
+5. client receive it and 'connect' of event of Socket get fired. socket.on("connect", handleConnect); 
+6. in handleConnect: we are sending SOCKET_EVENTS.GAME_CONNECT.
+
+## Flow for server receving game connect.
+1.
