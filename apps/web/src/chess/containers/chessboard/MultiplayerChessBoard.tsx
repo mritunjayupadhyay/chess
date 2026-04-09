@@ -18,6 +18,7 @@ import {
 } from "@myproject/chess-logic";
 import { filterInvalidBoxesToMove } from "../../helpers/position.helper";
 import Swal from "sweetalert2";
+import { useRouter } from "next/navigation";
 
 interface MultiplayerChessBoardProps {
     makeMove: (roomId: string, piecePosition: IPosition, targetPosition: IPosition) => void;
@@ -30,6 +31,7 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
     const myColor = useSelector((state: RootState) => state.multiplayer.myColor);
     const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
     const gameOver = useSelector((state: RootState) => state.multiplayer.gameOver);
+    const router = useRouter();
 
     const [activePiece, setActivePiece] = useState<IPiece | undefined>(undefined);
     const [possibleVisitBoxes, setPossibleVisitBoxes] = useState<Record<string, IBoxPosition>>({});
@@ -47,20 +49,25 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
     // Show game over modal
     useEffect(() => {
         if (gameOver) {
-            const isWinner = gameOver.winner === myColor;
+            const isDraw = gameOver.winner === null || gameOver.reason === 'stalemate';
+            const isWinner = !isDraw && gameOver.winner === myColor;
             const reasonText = gameOver.reason === 'checkmate' ? 'Checkmate'
                 : gameOver.reason === 'resign' ? 'Resignation'
+                : gameOver.reason === 'stalemate' ? 'Stalemate'
                 : 'Disconnection';
 
             Swal.fire({
-                title: isWinner ? "You Win!" : "You Lose!",
+                title: isDraw ? "Draw!" : isWinner ? "You Win!" : "You Lose!",
                 text: `Game over by ${reasonText}`,
-                icon: isWinner ? "success" : "error",
+                icon: isDraw ? "info" : isWinner ? "success" : "error",
+                showCancelButton: true,
                 confirmButtonColor: "#3085d6",
-                confirmButtonText: "Back to Lobby",
+                cancelButtonColor: "#6b7280",
+                confirmButtonText: "New Game",
+                cancelButtonText: "Cancel",
             }).then((result) => {
                 if (result.isConfirmed) {
-                    window.location.reload();
+                    router.push('/');
                 }
             });
         }

@@ -137,11 +137,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const gameState = this.gameStateService.getGameState(roomId);
 
             if (!room || !gameState) {
-                console.log(`[GAME_CONNECT ✗] Game has already ended roomId=${roomId}`);
-                console.log(`[GAME_CONNECT ⬆ ERROR] -> client=${client.id} "Game has already ended"`);
-                client.emit(SOCKET_EVENTS.ERROR, { message: 'Game has already ended' });
-                return;
-            }
+                // In-memory room/state is gone (e.g. server restart or full disconnect cleanup),
+                // but the pending game still says "started". Recover by re-bootstrapping the room:
+                // reset the pending game's status and stale sockets, then fall through to the
+                // normal join path so autoStartGame can run again once both players reconnect.
+                console.log(`[GAME_CONNECT] room/state missing for roomId=${roomId}; resetting pending game and re-bootstrapping`);
+                pendingGame.status = 'ready';
+                for (const p of pendingGame.players) {
+                    p.socketId = undefined;
+                }
+                // fall through to the join path below
+            } else {
 
             // Find the existing player entry in the room
             const existingPlayer = room.players.find(p => p.chessProfileId === chessProfileId);
@@ -189,6 +195,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }
 
             return;
+            }
         }
 
         const isPlayer = pendingGame.players.some(p => p.chessProfileId === chessProfileId);
@@ -523,6 +530,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             this.gameStateService.removeGame(payload.roomId);
             console.log(`[GAME_MOVE ⬆ ROOM_LIST_UPDATED] broadcasting to all`);
             this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
+        } else if (result.gameState?.stalemate) {
+            console.log(`[GAME_MOVE] STALEMATE detected!`);
+            this.clearDisconnectTimersForRoom(payload.roomId);
+            await this.finalizeGame(payload.roomId, null, 'stalemate');
+
+            console.log(`[GAME_MOVE ⬆ GAME_OVER] broadcasting to room=${payload.roomId} reason=stalemate`);
+            this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
+                winner: null,
+                reason: 'stalemate',
+                gameState: result.gameState,
+            });
+            this.roomService.setRoomStatus(payload.roomId, 'finished');
+            this.gameStateService.removeGame(payload.roomId);
+            this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
         }
     }
 
@@ -592,6 +613,19 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             this.roomService.setRoomStatus(payload.roomId, 'finished');
             this.gameStateService.removeGame(payload.roomId);
             console.log(`[CASTLING_MOVE ⬆ ROOM_LIST_UPDATED] broadcasting to all`);
+            this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
+        } else if (result.gameState?.stalemate) {
+            console.log(`[CASTLING_MOVE] STALEMATE detected!`);
+            this.clearDisconnectTimersForRoom(payload.roomId);
+            await this.finalizeGame(payload.roomId, null, 'stalemate');
+
+            this.server.to(payload.roomId).emit(SOCKET_EVENTS.GAME_OVER, {
+                winner: null,
+                reason: 'stalemate',
+                gameState: result.gameState,
+            });
+            this.roomService.setRoomStatus(payload.roomId, 'finished');
+            this.gameStateService.removeGame(payload.roomId);
             this.server.emit(SOCKET_EVENTS.ROOM_LIST_UPDATED, this.roomService.listRooms());
         }
     }
@@ -763,7 +797,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private async finalizeGame(
         roomId: string,
         winnerColor: colorType | null,
-        reason: 'checkmate' | 'resign' | 'disconnect',
+        reason: 'checkmate' | 'resign' | 'disconnect' | 'stalemate',
     ): Promise<void> {
         console.log(`[FINALIZE_GAME] roomId=${roomId} winner=${winnerColor} reason=${reason}`);
         const gameState = this.gameStateService.getGameState(roomId);

@@ -46,6 +46,7 @@ export interface IServerGameState {
     activeColor: colorType;
     check: colorType | undefined;
     checkmate: colorType | undefined;
+    stalemate: boolean;
     moveHistory: IMoveRecord[];
     dbGameId?: string;
     startedAt?: number;
@@ -98,8 +99,8 @@ export interface IMoveResultPayload {
 }
 
 export interface IGameOverPayload {
-    winner: colorType;
-    reason: 'checkmate' | 'resign' | 'disconnect';
+    winner: colorType | null;
+    reason: 'checkmate' | 'resign' | 'disconnect' | 'stalemate';
     gameState: IServerGameState;
 }
 

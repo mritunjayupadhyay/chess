@@ -13,7 +13,7 @@ export interface IMultiplayerState {
     myColor: colorType | undefined;
     gameActive: boolean;
     gameState: IServerGameState | null;
-    gameOver: { winner: colorType; reason: string } | null;
+    gameOver: { winner: colorType | null; reason: string } | null;
     opponentDisconnected: boolean;
     error: string | null;
 }
@@ -69,7 +69,7 @@ const slice = createSlice({
         updateGameState(state, action: PayloadAction<IServerGameState>) {
             state.gameState = action.payload;
         },
-        gameOver(state, action: PayloadAction<{ winner: colorType; reason: string }>) {
+        gameOver(state, action: PayloadAction<{ winner: colorType | null; reason: string }>) {
             state.gameActive = false;
             state.gameOver = action.payload;
         },

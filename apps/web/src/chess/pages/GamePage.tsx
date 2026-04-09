@@ -21,7 +21,7 @@ function GamePage({ gameId }: GamePageProps): React.JSX.Element {
         let cancelled = false;
 
         async function determine() {
-            // Try to load from DB
+            // Try to load from DB / pending
             try {
                 const game = await getGameById(gameId);
                 if (cancelled) return;
@@ -29,9 +29,11 @@ function GamePage({ gameId }: GamePageProps): React.JSX.Element {
                     setMode('completed');
                     return;
                 }
-            } catch {
+            } catch (err) {
                 if (cancelled) return;
-                // Not in DB — might be a pending game
+                // Not found in DB is expected for pending in-memory games — fall through to live mode.
+                // Any other error: also fall through and let the socket layer surface a real error.
+                console.warn('getGameById failed, treating as live/pending game:', err);
             }
 
             // It's a pending/active game — need chess profile

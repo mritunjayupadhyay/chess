@@ -26,6 +26,7 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
     const dispatch = useDispatch();
     const gameActive = useSelector((state: RootState) => state.multiplayer.gameActive);
     const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
+    const error = useSelector((state: RootState) => state.multiplayer.error);
     const connectedRef = useRef(false);
 
     useEffect(() => {
@@ -112,6 +113,14 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
         const socket = getSocket();
         socket.emit(SOCKET_EVENTS.GAME_RESIGN);
     }, []);
+
+    if (error) {
+        return (
+            <main className="flex items-center justify-center min-h-screen">
+                <p className="text-red-600">{error}</p>
+            </main>
+        );
+    }
 
     if (!gameActive || !currentRoom) {
         return <GameWaitingScreen gameId={gameId} />;

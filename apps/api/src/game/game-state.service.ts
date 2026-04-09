@@ -40,6 +40,7 @@ export class GameStateService {
             activeColor: allColorType.LIGHT_COLOR,
             check: undefined,
             checkmate: undefined,
+            stalemate: false,
             moveHistory: [],
         };
 
@@ -106,6 +107,9 @@ export class GameStateService {
         );
         state.check = check;
         state.checkmate = checkmate;
+        state.stalemate = !check && !checkmate && !this.opponentHasAnyLegalMove(
+            state.pieces, state.allPositions, this.getOppositeColor(piece.color),
+        );
 
         // Record move
         state.moveHistory.push({
@@ -216,6 +220,9 @@ export class GameStateService {
         );
         state.check = check;
         state.checkmate = checkmate;
+        state.stalemate = !check && !checkmate && !this.opponentHasAnyLegalMove(
+            state.pieces, state.allPositions, this.getOppositeColor(playerColor),
+        );
 
         // Record move
         state.moveHistory.push({
@@ -314,22 +321,33 @@ export class GameStateService {
 
         if (isInDanger(enemyPieces, allPositions, king.position)) {
             check = oppositeColor;
-            const allPositionsAfterMove = this.updatePositionsAfterMove(allPositions, movedPiece, newPosition);
-
-            const getPossibleMoveArgs: IGetAllPossibleMove = {
-                allBoxes: allPositionsAfterMove,
-                piece: king,
-            };
-            const { allPossibleKillBoxes, allPossibleVisitingBoxes } = getPossibleMove(getPossibleMoveArgs);
-            checkmate = oppositeColor;
-            for (const move of Object.values({ ...allPossibleKillBoxes, ...allPossibleVisitingBoxes })) {
-                if (!isInDanger(enemyPieces, allPositions, move.position)) {
-                    checkmate = undefined;
-                    break;
-                }
+            // Checkmate iff the side in check has no legal move at all
+            // (king escape, blocking the check, or capturing the checker).
+            if (!this.opponentHasAnyLegalMove(pieces, allPositions, oppositeColor)) {
+                checkmate = oppositeColor;
             }
         }
         return { check, checkmate };
+    }
+
+    private opponentHasAnyLegalMove(
+        pieces: IPiece[],
+        allPositions: Record<string, IBoxPosition>,
+        color: colorType,
+    ): boolean {
+        const ownPieces = pieces.filter(p => p.color === color && p.isAlive);
+        for (const piece of ownPieces) {
+            const { allPossibleKillBoxes, allPossibleVisitingBoxes } = getPossibleMove({
+                allBoxes: { ...allPositions },
+                piece,
+            });
+            const valid = {
+                ...this.filterInvalidMoves(piece, pieces, allPositions, color, allPossibleKillBoxes),
+                ...this.filterInvalidMoves(piece, pieces, allPositions, color, allPossibleVisitingBoxes),
+            };
+            if (Object.keys(valid).length > 0) return true;
+        }
+        return false;
     }
 
     private getOppositeColor(color: colorType): colorType {
