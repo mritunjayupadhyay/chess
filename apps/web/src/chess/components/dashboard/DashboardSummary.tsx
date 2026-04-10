@@ -38,7 +38,7 @@ export function DashboardSummary() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 w-full">
+      <div className="grid grid-cols-2 gap-3 w-full p-1">
         <Link
           href="/multiplayer"
           className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-center"
