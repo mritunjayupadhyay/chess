@@ -1,7 +1,7 @@
 [build]
 dockerfilePath = "apps/api/Dockerfile"
 dockerContext = "."
-buildArgs = ["GITHUB_TOKEN"]
+buildArgs = { GITHUB_TOKEN = "${{GITHUB_TOKEN}}" }
 
 [deploy]
 healthcheckPath = "/api/docs"
