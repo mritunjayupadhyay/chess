@@ -12,8 +12,6 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/chess-logic/package.json ./packages/chess-logic/
 COPY tsconfig.base.json ./
 
-RUN git config --global url."https://github.com/".insteadOf "git@github.com:" && \
-    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 ARG GITHUB_TOKEN
 RUN if [ -n "$GITHUB_TOKEN" ]; then \
       git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"; \
