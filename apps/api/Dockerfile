@@ -25,7 +25,7 @@ COPY apps/api ./apps/api
 RUN pnpm turbo run build --filter=api
 
 # ---- Production ----
-FROM node:20-slim AS runner
+FROM base AS runner
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
