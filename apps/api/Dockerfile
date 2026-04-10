@@ -12,11 +12,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/chess-logic/package.json ./packages/chess-logic/
 COPY tsconfig.base.json ./
 
-ARG GITHUB_TOKEN
-RUN test -n "$GITHUB_TOKEN" || (echo "ERROR: GITHUB_TOKEN build arg is empty" && exit 1)
-RUN git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 RUN pnpm install --frozen-lockfile
-RUN git config --global --remove-section url."https://x-access-token:${GITHUB_TOKEN}@github.com/"
 
 # ---- Build ----
 FROM deps AS build
