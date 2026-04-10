@@ -13,10 +13,10 @@ COPY packages/chess-logic/package.json ./packages/chess-logic/
 COPY tsconfig.base.json ./
 
 ARG GITHUB_TOKEN
-RUN if [ -n "$GITHUB_TOKEN" ]; then \
-      git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"; \
-    fi
+RUN echo "machine github.com login x-access-token password ${GITHUB_TOKEN}" > /root/.netrc && \
+    chmod 600 /root/.netrc
 RUN pnpm install --frozen-lockfile
+RUN rm -f /root/.netrc
 
 # ---- Build ----
 FROM deps AS build
