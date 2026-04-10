@@ -23,7 +23,7 @@ import { GameStateService } from './game-state.service';
 import { ChessProfilesService } from '../chess-profiles/chess-profiles.service';
 import { GamesService } from '../games/games.service';
 import { MovesService } from '../moves/moves.service';
-import { PendingGamesService } from '../games/pending-games.service';
+import { GamePresenceService } from '../games/game-presence.service';
 
 @WebSocketGateway({
     cors: {
@@ -44,7 +44,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         private readonly chessProfilesService: ChessProfilesService,
         private readonly gamesService: GamesService,
         private readonly movesService: MovesService,
-        private readonly pendingGamesService: PendingGamesService,
+        private readonly gamePresenceService: GamePresenceService,
     ) {}
 
     handleConnection(client: Socket): void {
@@ -110,43 +110,39 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const { gameId, chessProfileId } = payload;
         console.log(`\n[GAME_CONNECT ⬇ received] client=${client.id}`, JSON.stringify({ gameId, chessProfileId }));
 
-        const pendingGame = this.pendingGamesService.getGame(gameId);
+        const dbGame = await this.gamesService.findById(gameId);
 
-        if (!pendingGame) {
+        if (!dbGame) {
             console.log(`[GAME_CONNECT ✗] Game not found gameId=${gameId}`);
-            console.log(`[GAME_CONNECT ⬆ ERROR] -> client=${client.id} "Game not found"`);
             client.emit(SOCKET_EVENTS.ERROR, { message: 'Game not found' });
             return;
         }
 
-        console.log(`[GAME_CONNECT] pendingGame status=${pendingGame.status} players=${JSON.stringify(pendingGame.players.map(p => p.chessProfileId))}`);
+        console.log(`[GAME_CONNECT] dbGame status=${dbGame.status} white=${dbGame.whitePlayerId} black=${dbGame.blackPlayerId}`);
 
-        if (pendingGame.status === 'started') {
-            console.log(`[GAME_CONNECT] game already started, attempting reconnection`);
-            // Attempt reconnection
-            const isReconnectingPlayer = pendingGame.players.some(p => p.chessProfileId === chessProfileId);
-            if (!isReconnectingPlayer) {
-                console.log(`[GAME_CONNECT ✗] chessProfileId=${chessProfileId} is not part of this game`);
-                console.log(`[GAME_CONNECT ⬆ ERROR] -> client=${client.id} "You are not part of this game"`);
-                client.emit(SOCKET_EVENTS.ERROR, { message: 'You are not part of this game' });
-                return;
-            }
+        // Authorization: only the two seated players (or the creator while waiting) can connect
+        const allowedProfileIds = new Set<string>();
+        if (dbGame.whitePlayerId) allowedProfileIds.add(dbGame.whitePlayerId);
+        if (dbGame.blackPlayerId) allowedProfileIds.add(dbGame.blackPlayerId);
+        if (dbGame.status === 'waiting' && dbGame.createdByProfileId) allowedProfileIds.add(dbGame.createdByProfileId);
+        if (!allowedProfileIds.has(chessProfileId)) {
+            console.log(`[GAME_CONNECT ✗] chessProfileId=${chessProfileId} not part of game`);
+            client.emit(SOCKET_EVENTS.ERROR, { message: 'You are not part of this game' });
+            return;
+        }
+
+        if (dbGame.status === 'playing') {
+            console.log(`[GAME_CONNECT] game already playing, attempting reconnection`);
 
             const roomId = `game:${gameId}`;
             const room = this.roomService.getRoom(roomId);
             const gameState = this.gameStateService.getGameState(roomId);
 
             if (!room || !gameState) {
-                // In-memory room/state is gone (e.g. server restart or full disconnect cleanup),
-                // but the pending game still says "started". Recover by re-bootstrapping the room:
-                // reset the pending game's status and stale sockets, then fall through to the
-                // normal join path so autoStartGame can run again once both players reconnect.
-                console.log(`[GAME_CONNECT] room/state missing for roomId=${roomId}; resetting pending game and re-bootstrapping`);
-                pendingGame.status = 'ready';
-                for (const p of pendingGame.players) {
-                    p.socketId = undefined;
-                }
-                // fall through to the join path below
+                // In-memory room/state is gone (e.g. server restart). Clear presence
+                // and fall through to the normal join path so autoStartGame runs again.
+                console.log(`[GAME_CONNECT] room/state missing for roomId=${roomId}; clearing presence and re-bootstrapping`);
+                this.gamePresenceService.clear(gameId);
             } else {
 
             // Find the existing player entry in the room
@@ -171,7 +167,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }
 
             // Update socket ID
-            this.pendingGamesService.setPlayerSocket(gameId, chessProfileId, client.id);
+            this.gamePresenceService.setPlayerSocket(gameId, chessProfileId, client.id);
             this.roomService.updatePlayerSocket(chessProfileId, oldSocketId, client.id);
 
             // Join the Socket.IO room
@@ -198,16 +194,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             }
         }
 
-        const isPlayer = pendingGame.players.some(p => p.chessProfileId === chessProfileId);
-        if (!isPlayer) {
-            console.log(`[GAME_CONNECT ✗] chessProfileId=${chessProfileId} is not part of this game`);
-            console.log(`[GAME_CONNECT ⬆ ERROR] -> client=${client.id} "You are not part of this game"`);
-            client.emit(SOCKET_EVENTS.ERROR, { message: 'You are not part of this game' });
+        if (dbGame.status !== 'ready' && dbGame.status !== 'waiting') {
+            console.log(`[GAME_CONNECT ✗] cannot connect, status=${dbGame.status}`);
+            client.emit(SOCKET_EVENTS.ERROR, { message: 'Game is not joinable' });
             return;
         }
 
         // Register socket
-        this.pendingGamesService.setPlayerSocket(gameId, chessProfileId, client.id);
+        this.gamePresenceService.setPlayerSocket(gameId, chessProfileId, client.id);
 
         // Look up profile to get a real display name (username)
         const profile = await this.chessProfilesService.findById(chessProfileId).catch(() => null);
@@ -226,7 +220,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         console.log(`[GAME_CONNECT] player joined room=${roomId}`);
 
         // Check if both players are connected
-        if (this.pendingGamesService.areBothPlayersConnected(gameId)) {
+        if (this.gamePresenceService.areBothConnected(gameId)) {
             console.log(`[GAME_CONNECT] both players connected, auto-starting game`);
             await this.autoStartGame(gameId);
         } else {
@@ -237,17 +231,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     private async autoStartGame(gameId: string): Promise<void> {
         console.log(`\n[AUTO_START_GAME] gameId=${gameId}`);
-        const pendingGame = this.pendingGamesService.getGame(gameId);
-        if (!pendingGame) return;
+        const dbGame = await this.gamesService.findById(gameId);
+        if (!dbGame || !dbGame.whitePlayerId || !dbGame.blackPlayerId) {
+            console.log(`[AUTO_START_GAME ✗] db game missing or incomplete`);
+            return;
+        }
 
         const roomId = `game:${gameId}`;
-
-        // Assign colors from the pending game's white/black assignment
         const room = this.roomService.getRoom(roomId);
         if (!room) return;
 
         for (const player of room.players) {
-            player.color = player.chessProfileId === pendingGame.whiteProfileId
+            player.color = player.chessProfileId === dbGame.whitePlayerId
                 ? allColorType.LIGHT_COLOR
                 : allColorType.DARK_COLOR;
         }
@@ -257,20 +252,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.roomService.setRoomStatus(roomId, 'playing');
         const gameState = this.gameStateService.initializeGame(roomId);
 
-        // Create DB record
-        if (pendingGame.whiteProfileId && pendingGame.blackProfileId) {
-            try {
-                const dbGame = await this.gamesService.create({
-                    whitePlayerId: pendingGame.whiteProfileId,
-                    blackPlayerId: pendingGame.blackProfileId,
-                    timeControl: pendingGame.timeControl,
-                });
-                gameState.dbGameId = dbGame.id;
-                gameState.startedAt = Date.now();
-                console.log(`[AUTO_START_GAME] DB game created id=${dbGame.id}`);
-            } catch (err) {
-                console.error('[AUTO_START_GAME] Failed to create game record:', err);
-            }
+        // Flip DB row from 'ready' to 'playing'
+        try {
+            await this.gamesService.markPlaying(gameId);
+            gameState.dbGameId = gameId;
+            gameState.startedAt = Date.now();
+            console.log(`[AUTO_START_GAME] DB game marked playing id=${gameId}`);
+        } catch (err) {
+            console.error('[AUTO_START_GAME] Failed to mark game playing:', err);
         }
 
         for (const player of room.players) {
@@ -282,7 +271,6 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             });
         }
 
-        pendingGame.status = 'started';
         console.log(`[AUTO_START_GAME] game started successfully`);
     }
 
@@ -421,19 +409,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
             console.log(`[GAME_START] colors assigned: white=${whitePlayer?.displayName} black=${blackPlayer?.displayName}`);
 
+            // NOTE: legacy room-based flow no longer creates a DB game record.
+            // Use the REST /api/games + game:connect flow for persisted games.
             if (whitePlayer?.chessProfileId && blackPlayer?.chessProfileId) {
-                try {
-                    const dbGame = await this.gamesService.create({
-                        whitePlayerId: whitePlayer.chessProfileId,
-                        blackPlayerId: blackPlayer.chessProfileId,
-                        timeControl: 'rapid',
-                    });
-                    gameState.dbGameId = dbGame.id;
-                    gameState.startedAt = Date.now();
-                    console.log(`[GAME_START] DB game created id=${dbGame.id}`);
-                } catch (err) {
-                    console.error('[GAME_START] Failed to create game record:', err);
-                }
+                gameState.startedAt = Date.now();
             }
 
             // Emit to each player individually with their color

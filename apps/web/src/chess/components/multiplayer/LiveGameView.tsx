@@ -26,6 +26,7 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
     const dispatch = useDispatch();
     const gameActive = useSelector((state: RootState) => state.multiplayer.gameActive);
     const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
+    const gameOver = useSelector((state: RootState) => state.multiplayer.gameOver);
     const error = useSelector((state: RootState) => state.multiplayer.error);
     const connectedRef = useRef(false);
 
@@ -122,7 +123,7 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
         );
     }
 
-    if (!gameActive || !currentRoom) {
+    if ((!gameActive && !gameOver) || !currentRoom) {
         return <GameWaitingScreen gameId={gameId} />;
     }
 
