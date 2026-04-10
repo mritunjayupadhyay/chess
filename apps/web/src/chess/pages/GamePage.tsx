@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
-import { getGameById, getMemberByClerkId, getChessProfileByMemberId, createChessProfile } from "../../lib/api";
+import { useRouter } from "next/navigation";
+import { getGameById, getMemberByClerkId, getChessProfileByMemberId, createChessProfile, createGame } from "../../lib/api";
 import { GameDetailPage } from "./GameDetailPage";
 import { LiveGameView } from "../components/multiplayer/LiveGameView";
 
@@ -12,8 +13,23 @@ interface GamePageProps {
 
 function GamePage({ gameId }: GamePageProps): React.JSX.Element {
     const { user, isLoaded } = useUser();
+    const router = useRouter();
     const [mode, setMode] = useState<'loading' | 'completed' | 'live'>('loading');
     const [chessProfileId, setChessProfileId] = useState<string | null>(null);
+
+    const handleNewGame = useCallback(async () => {
+        if (!chessProfileId) return;
+        try {
+            // const game = await createGame({ timeControl: 'rapid', chessProfileId });
+            router.push(`/multiplayer`);
+        } catch (err) {
+            console.error('Failed to create new game:', err);
+        }
+    }, [chessProfileId, router]);
+
+    const handleCancel = useCallback(() => {
+        setMode('completed');
+    }, []);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -84,7 +100,7 @@ function GamePage({ gameId }: GamePageProps): React.JSX.Element {
         );
     }
 
-    return <LiveGameView gameId={gameId} chessProfileId={chessProfileId} />;
+    return <LiveGameView gameId={gameId} chessProfileId={chessProfileId} onNewGame={handleNewGame} onCancel={handleCancel} />;
 }
 
 export { GamePage };

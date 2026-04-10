@@ -18,20 +18,20 @@ import {
 } from "@myproject/chess-logic";
 import { filterInvalidBoxesToMove } from "../../helpers/position.helper";
 import Swal from "sweetalert2";
-import { useRouter } from "next/navigation";
 
 interface MultiplayerChessBoardProps {
     makeMove: (roomId: string, piecePosition: IPosition, targetPosition: IPosition) => void;
     makeCastlingMove: (roomId: string, kingPosition: IPosition, rookPosition: IPosition) => void;
     resign: () => void;
+    onNewGame: () => void;
+    onCancel: () => void;
 }
 
-function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: MultiplayerChessBoardProps): React.JSX.Element {
+function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign, onNewGame, onCancel }: MultiplayerChessBoardProps): React.JSX.Element {
     const gameState = useSelector((state: RootState) => state.multiplayer.gameState);
     const myColor = useSelector((state: RootState) => state.multiplayer.myColor);
     const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
     const gameOver = useSelector((state: RootState) => state.multiplayer.gameOver);
-    const router = useRouter();
 
     const [activePiece, setActivePiece] = useState<IPiece | undefined>(undefined);
     const [possibleVisitBoxes, setPossibleVisitBoxes] = useState<Record<string, IBoxPosition>>({});
@@ -67,7 +67,9 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
                 cancelButtonText: "Cancel",
             }).then((result) => {
                 if (result.isConfirmed) {
-                    router.push('/');
+                    onNewGame();
+                } else {
+                    onCancel();
                 }
             });
         }
@@ -203,6 +205,7 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
         <div className="flex flex-col w-full min-h-screen justify-center items-center">
             <div className="relative w-full max-w-[600px] overflow-hidden mx-auto">
                 {/* Turn indicator */}
+                {!gameOver && (
                 <div className="mb-3 text-center">
                     <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold ${
                         isMyTurn
@@ -215,6 +218,7 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
                         Playing as {myColor}
                     </span>
                 </div>
+                )}
 
                 {/* Opponent's captured pieces */}
                 <FallenPieces color={opponentColor} playerName={opponentName} />
@@ -230,6 +234,7 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
                 <FallenPieces color={myColor} playerName={myName} />
 
                 {/* Resign button */}
+                {!gameOver && (
                 <div className="mt-3 text-center">
                     <button
                         onClick={resign}
@@ -238,6 +243,7 @@ function MultiplayerChessBoard({ makeMove, makeCastlingMove, resign }: Multiplay
                         Resign
                     </button>
                 </div>
+                )}
             </div>
         </div>
     );

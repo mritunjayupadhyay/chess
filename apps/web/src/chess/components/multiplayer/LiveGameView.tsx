@@ -20,9 +20,11 @@ import { MultiplayerChessBoard } from "../../containers/chessboard/MultiplayerCh
 interface LiveGameViewProps {
     gameId: string;
     chessProfileId: string;
+    onNewGame: () => void;
+    onCancel: () => void;
 }
 
-function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.Element {
+function LiveGameView({ gameId, chessProfileId, onNewGame, onCancel }: LiveGameViewProps): React.JSX.Element {
     const dispatch = useDispatch();
     const gameActive = useSelector((state: RootState) => state.multiplayer.gameActive);
     const currentRoom = useSelector((state: RootState) => state.multiplayer.currentRoom);
@@ -132,6 +134,8 @@ function LiveGameView({ gameId, chessProfileId }: LiveGameViewProps): React.JSX.
             makeMove={makeMove}
             makeCastlingMove={makeCastlingMove}
             resign={resign}
+            onNewGame={onNewGame}
+            onCancel={onCancel}
         />
     );
 }
