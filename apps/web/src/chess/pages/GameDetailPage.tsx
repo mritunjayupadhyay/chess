@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import type { GameDetail, Move } from "../../lib/api-types";
 import { getGameById, getMovesByGameId } from "../../lib/api";
 import { MoveList } from "../components/games/MoveList";
+import { ReplayBoard } from "../components/board/ReplayBoard";
+import { MoveNavigator } from "../components/games/MoveNavigator";
 
 export function GameDetailPage({ gameId }: { gameId: string }) {
   const [game, setGame] = useState<GameDetail | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +27,7 @@ export function GameDetailPage({ gameId }: { gameId: string }) {
         if (cancelled) return;
         setGame(g);
         setMoves(m);
+        setCurrentMoveIndex(m.length);
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
       } finally {
@@ -36,6 +40,25 @@ export function GameDetailPage({ gameId }: { gameId: string }) {
       cancelled = true;
     };
   }, [gameId]);
+
+  const fenArray = useMemo(
+    () =>
+      game ? [game.startingFen, ...moves.map((m) => m.fenAfter)] : [],
+    [game, moves]
+  );
+
+  const handleNavigate = useCallback(
+    (index: number) => setCurrentMoveIndex(index),
+    []
+  );
+
+  const handleMoveClick = useCallback(
+    (ply: number) => setCurrentMoveIndex(ply),
+    []
+  );
+
+  // The active ply is the move index (1-based ply), 0 means starting position
+  const activePly = currentMoveIndex > 0 ? moves[currentMoveIndex - 1]?.ply : undefined;
 
   if (loading) {
     return (
@@ -70,7 +93,7 @@ export function GameDetailPage({ gameId }: { gameId: string }) {
     : new Date(game.createdAt).toLocaleDateString();
 
   return (
-    <main className="max-w-lg mx-auto px-4 py-8">
+    <main className="max-w-2xl mx-auto px-4 py-8">
       <Link href="/games" className="text-blue-600 hover:underline text-sm">
         &larr; Back to Games
       </Link>
@@ -115,9 +138,17 @@ export function GameDetailPage({ gameId }: { gameId: string }) {
 
       <p className="text-xs text-gray-400 mb-4">{date}</p>
 
+      {/* Chessboard */}
+      <ReplayBoard fen={fenArray[currentMoveIndex] ?? game.startingFen} />
+      <MoveNavigator
+        currentIndex={currentMoveIndex}
+        totalMoves={moves.length}
+        onNavigate={handleNavigate}
+      />
+
       {/* Move list */}
-      <h2 className="text-lg font-semibold mb-3">Moves</h2>
-      <MoveList moves={moves} />
+      <h2 className="text-lg font-semibold mb-3 mt-6">Moves</h2>
+      <MoveList moves={moves} activePly={activePly} onMoveClick={handleMoveClick} />
     </main>
   );
 }

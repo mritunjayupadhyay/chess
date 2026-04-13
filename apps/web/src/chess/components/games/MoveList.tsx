@@ -2,7 +2,13 @@
 
 import type { Move } from "../../../lib/api-types";
 
-export function MoveList({ moves }: { moves: Move[] }) {
+interface MoveListProps {
+  moves: Move[];
+  activePly?: number;
+  onMoveClick?: (ply: number) => void;
+}
+
+export function MoveList({ moves, activePly, onMoveClick }: MoveListProps) {
   // Group moves into pairs: white (odd ply) + black (even ply)
   const pairs: { number: number; white?: Move; black?: Move }[] = [];
 
@@ -29,9 +35,19 @@ export function MoveList({ moves }: { moves: Move[] }) {
       {pairs.map((pair) => (
         <span key={pair.number} className="inline-block mr-4 mb-1">
           <span className="text-gray-400">{pair.number}.</span>{" "}
-          <span className="font-medium">{pair.white?.notation ?? "..."}</span>{" "}
+          <span
+            className={`font-medium ${onMoveClick ? "cursor-pointer hover:underline" : ""} ${activePly !== undefined && pair.white && pair.white.ply === activePly ? "bg-yellow-200 rounded px-0.5" : ""}`}
+            onClick={pair.white && onMoveClick ? () => onMoveClick(pair.white!.ply) : undefined}
+          >
+            {pair.white?.notation ?? "..."}
+          </span>{" "}
           {pair.black && (
-            <span className="font-medium">{pair.black.notation}</span>
+            <span
+              className={`font-medium ${onMoveClick ? "cursor-pointer hover:underline" : ""} ${activePly !== undefined && pair.black.ply === activePly ? "bg-yellow-200 rounded px-0.5" : ""}`}
+              onClick={onMoveClick ? () => onMoveClick(pair.black!.ply) : undefined}
+            >
+              {pair.black.notation}
+            </span>
           )}
         </span>
       ))}
