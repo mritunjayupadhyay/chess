@@ -10,8 +10,12 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Enable CORS for the frontend
+  const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+    .split(",")
+    .map((o) => o.trim());
   app.enableCors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: allowedOrigins,
+    credentials: true,
   });
 
   // Swagger / OpenAPI setup
