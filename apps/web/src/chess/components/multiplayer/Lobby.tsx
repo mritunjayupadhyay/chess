@@ -59,7 +59,7 @@ function Lobby({ chessProfileId }: LobbyProps): React.JSX.Element {
 
                 {/* Create Game */}
                 <form onSubmit={handleCreate} className="mb-8">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {/* <label className="block text-sm font-medium text-gray-700 mb-2">
                         Create a new game
                     </label>
                     <div className="flex gap-2 mb-3">
@@ -85,7 +85,7 @@ function Lobby({ chessProfileId }: LobbyProps): React.JSX.Element {
                         >
                             Rapid
                         </button>
-                    </div>
+                    </div> */}
                     <button
                         type="submit"
                         disabled={creating}

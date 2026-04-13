@@ -7,5 +7,9 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://api-production-44a8.up.railway.app",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZGVhci1lYXJ3aWctOTYuY2xlcmsuYWNjb3VudHMuZGV2JA"
   }
 }
