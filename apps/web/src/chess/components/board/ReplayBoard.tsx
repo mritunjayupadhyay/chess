@@ -1,12 +1,18 @@
 "use client";
 
+import { pieceType, colorType } from "@myproject/chess-logic";
 import { parseFen } from "../../helpers/fen-parser";
 import { getImageUrl } from "../../helpers/piece.helper";
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
 
-export function ReplayBoard({ fen }: { fen: string }) {
+interface ReplayBoardProps {
+  fen: string;
+  checkmatedKing?: colorType;
+}
+
+export function ReplayBoard({ fen, checkmatedKing }: ReplayBoardProps) {
   const board = parseFen(fen);
 
   return (
@@ -20,11 +26,15 @@ export function ReplayBoard({ fen }: { fen: string }) {
               const url = square
                 ? getImageUrl(square.type, square.color)
                 : null;
+              const isCheckmated =
+                checkmatedKing &&
+                square?.type === pieceType.KING &&
+                square.color === checkmatedKing;
 
               return (
                 <div
                   key={`${rankIdx}-${fileIdx}`}
-                  className={`relative ${isLight ? "bg-chess-light" : "bg-chess-dark"}`}
+                  className={`relative ${isCheckmated ? "bg-red-500/90" : isLight ? "bg-chess-light" : "bg-chess-dark"}`}
                 >
                   {/* File label on bottom rank */}
                   {rankIdx === 7 && (

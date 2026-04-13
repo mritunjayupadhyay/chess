@@ -139,7 +139,14 @@ export function GameDetailPage({ gameId }: { gameId: string }) {
       <p className="text-xs text-gray-400 mb-4">{date}</p>
 
       {/* Chessboard */}
-      <ReplayBoard fen={fenArray[currentMoveIndex] ?? game.startingFen} />
+      <ReplayBoard
+        fen={fenArray[currentMoveIndex] ?? game.startingFen}
+        checkmatedKing={
+          game.endReason === "checkmate" && currentMoveIndex === moves.length
+            ? game.result === "white_win" ? "dark" : game.result === "black_win" ? "light" : undefined
+            : undefined
+        }
+      />
       <MoveNavigator
         currentIndex={currentMoveIndex}
         totalMoves={moves.length}
